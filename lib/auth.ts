@@ -1,9 +1,4 @@
-import NextAuth from 'next-auth'
-import { PrismaAdapter } from '@auth/prisma-adapter'
-import prisma from '@/lib/prisma'
-import GitHub from 'next-auth/providers/github'
+// Auth configuration is centralized in src/auth.config.ts
+// This file re-exports the auth utilities for convenience
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-    adapter: PrismaAdapter(prisma),
-    providers: [GitHub],
-})
+export { auth, signIn, signOut } from '../src/auth.config'
