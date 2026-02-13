@@ -101,12 +101,20 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('Password'), 'password123')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
+    // Assert loading state: inputs disabled, button shows "Signing in..."
     expect(screen.getByLabelText('Email address')).toBeDisabled()
     expect(screen.getByLabelText('Password')).toBeDisabled()
     expect(
       screen.getByRole('button', { name: 'Signing in...' })
     ).toBeDisabled()
 
+    // Resolve the promise to complete sign-in
     resolvePromise!({ ok: true })
+
+    // Assert loading state is cleared: inputs re-enabled, button returns to normal
+    await screen.findByRole('button', { name: 'Sign in' })
+    expect(screen.getByLabelText('Email address')).not.toBeDisabled()
+    expect(screen.getByLabelText('Password')).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled()
   })
 })

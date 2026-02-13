@@ -9,12 +9,19 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
+      include: ['src/**/*.{ts,tsx}', 'lib/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.{ts,tsx}',
         'src/**/*.spec.{ts,tsx}',
+        'lib/**/*.test.{ts,tsx}',
+        'lib/**/*.spec.{ts,tsx}',
         'src/types/**',
-        'src/app/**',
+        // Exclude only declarative Next.js app router boilerplate from coverage
+        'src/app/**/layout.{ts,tsx}',
+        'src/app/**/template.{ts,tsx}',
+        'src/app/**/error.{ts,tsx}',
+        'src/app/**/not-found.{ts,tsx}',
+        'src/app/**/loading.{ts,tsx}',
         'src/auth.config.ts', // NextAuth config, tested indirectly
         '**/*.d.ts',
         'generated/**',
