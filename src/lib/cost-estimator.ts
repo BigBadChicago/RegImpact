@@ -408,7 +408,7 @@ export function calculateImplementationCost(
  * AI-powered department allocation with detailed breakdown
  * Refines initial allocation based on regulation context and company profile
  */
-async function allocateToDepartmentsWithAI(
+export async function allocateToDepartmentsWithAI(
   drivers: CostDriver[],
   profile: CompanyProfile,
   regulationTitle: string
