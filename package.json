@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "test": "vitest",
     "test:unit": "vitest run --coverage tests/unit",
     "test:integration": "vitest run tests/integration",
