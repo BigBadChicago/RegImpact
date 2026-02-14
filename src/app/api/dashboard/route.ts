@@ -29,6 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Fetch dashboard data
+    // Note: Add customer-based filtering when jurisdiction monitoring is implemented in schema
     const [regulationCount, policyDiffCount, recentDiffs] = await Promise.all([
       prisma.regulation.count(),
       prisma.policyDiff.count(),

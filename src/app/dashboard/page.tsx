@@ -26,6 +26,7 @@ export default async function DashboardPage() {
   }
 
   // Fetch quick stats
+  // Note: Add customer-based filtering when jurisdiction monitoring is implemented in schema
   const regulationCount = await prisma.regulation.count();
   const policyDiffCount = await prisma.policyDiff.count();
 

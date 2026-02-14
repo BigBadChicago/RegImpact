@@ -128,8 +128,29 @@ Respond ONLY with valid JSON, no other text.`,
     const content = response.choices[0]?.message?.content || '';
     console.log(`[AI Response] Tokens used: ${response.usage?.total_tokens}`);
 
-    // Parse JSON response
-    const parsed = JSON.parse(content);
+    // Parse JSON response with error handling
+    let parsed: any;
+    try {
+      // Strip markdown code blocks and trim whitespace
+      let jsonContent = content.trim();
+      if (jsonContent.startsWith('```json')) {
+        jsonContent = jsonContent.replace(/^```json\s*|\s*```$/g, '');
+      } else if (jsonContent.startsWith('```')) {
+        jsonContent = jsonContent.replace(/^```\s*|\s*```$/g, '');
+      }
+      
+      // Find JSON object boundaries if there's extra text
+      const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[0];
+      }
+      
+      parsed = JSON.parse(jsonContent);
+    } catch (parseError) {
+      console.error(`[JSON Parse Error] Failed to parse AI response:`, parseError);
+      console.error(`[Raw Content]:`, content);
+      throw new Error(`Invalid JSON response from AI: ${parseError}`);
+    }
 
     const summary: PolicyDiffSummary = {
       summary: parsed.summary || 'No summary available',

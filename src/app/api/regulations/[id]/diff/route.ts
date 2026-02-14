@@ -33,8 +33,9 @@ type DiffRequest = z.infer<typeof diffRequestSchema>;
  */
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  props: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const params = await props.params;
   try {
     // Authenticate user
     const session = await auth();
@@ -65,7 +66,7 @@ export async function POST(
     }
 
     const { previousVersionId, currentVersionId } = validationResult.data;
-    const { id: regulationId } = await context.params;
+    const regulationId = params.id;
 
     // Fetch user's customer
     const user = await prisma.user.findUnique({
@@ -188,8 +189,9 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  props: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const params = await props.params;
   try {
     // Authenticate user
     const session = await auth();
@@ -200,7 +202,7 @@ export async function GET(
       );
     }
 
-    const { id: regulationId } = await context.params;
+    const regulationId = params.id;
 
     // Fetch user's customer
     const user = await prisma.user.findUnique({

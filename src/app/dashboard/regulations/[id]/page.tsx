@@ -8,22 +8,23 @@ import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth.config';
 import DiffComparison from '@/components/regulations/DiffComparison';
+import { formatDate } from '@/lib/utils/format';
 
 interface RegulationDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function RegulationDetailPage({
-  params,
-}: RegulationDetailPageProps) {
+export default async function RegulationDetailPage(
+  props: RegulationDetailPageProps
+) {
+  const params = await props.params;
   // Authenticate
   const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
   }
 
-  // Resolve params
-  const { id } = await params;
+  const { id } = params;
 
   // Fetch user and their customer
   const user = await prisma.user.findUnique({
@@ -83,11 +84,7 @@ export default async function RegulationDetailPage({
             {regulation.effectiveDate && (
               <div>
                 <span className="font-medium">Effective Date:</span>{' '}
-                {new Intl.DateTimeFormat('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                }).format(new Date(regulation.effectiveDate))}
+                {formatDate(regulation.effectiveDate)}
               </div>
             )}
             <div>

@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth.config';
+import { formatDate } from '@/lib/utils/format';
 
 export default async function RegulationsPage() {
   // Authenticate
@@ -25,7 +26,8 @@ export default async function RegulationsPage() {
     redirect('/login');
   }
 
-  // Fetch all regulations (TODO: Filter by customer's monitored jurisdictions when schema is updated)
+  // Fetch all regulations
+  // Note: Add customer-based filtering when jurisdiction monitoring is implemented in schema
   const regulations = await prisma.regulation.findMany({
     include: {
       jurisdiction: true,
@@ -33,14 +35,6 @@ export default async function RegulationsPage() {
     },
     orderBy: { createdAt: 'desc' },
   });
-
-  const formatDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(date);
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">
