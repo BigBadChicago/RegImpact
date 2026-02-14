@@ -75,6 +75,19 @@ export interface CompanyProfile {
 /**
  * Individual cost driver identified from regulation
  */
+/**
+ * Evidence source for cost driver citation
+ */
+export interface EvidenceSource {
+  type: 'REGULATION_CLAUSE' | 'INDUSTRY_BENCHMARK' | 'CASE_STUDY' | 'VENDOR_QUOTE' | 'ASSUMPTION';
+  reference: string; // Clause number, benchmark ID, etc.
+  confidence: number; // 0-1, how strong is this evidence
+  estimatedCost?: number; // If evidence suggests specific cost
+}
+
+/**
+ * Cost driver with evidence and department allocation
+ */
 export interface CostDriver {
   id: string;
   category: CostCategory;
@@ -83,10 +96,32 @@ export interface CostDriver {
   estimatedCost: number;
   confidence: number; // 0-1
   department: Department;
+  // Phase 1: Evidence-backed extraction
+  evidence?: EvidenceSource[];
+  notes?: string;
+  // Phase 1: AI-allocated alternatives
+  departmentAlternatives?: Array<{
+    department: Department;
+    probability: number; // 0-1, likelihood this department is responsible
+    reasoning?: string;
+  }>;
 }
 
 /**
- * Department-level cost breakdown
+ * Department allocation with AI-powered breakdown
+ */
+export interface DepartmentAllocationDetail {
+  oneTimeTasks: string[]; // Specific implementation tasks
+  recurringTasks: string[]; // Ongoing responsibilities
+  fteSplit?: {
+    [role: string]: number; // e.g., { 'Senior Engineer': 0.5, 'Compliance Officer': 0.3 }
+  };
+  riskFactors?: string[]; // Potential challenges/risks
+  sequencing?: string[]; // Order of implementation steps
+}
+
+/**
+ * Department-level cost breakdown with AI allocation detail
  */
 export interface DepartmentCostBreakdown {
   department: Department;
@@ -95,6 +130,8 @@ export interface DepartmentCostBreakdown {
   fteImpact: number;
   budgetCode?: string;
   lineItems: CostDriver[];
+  // Phase 1: AI-provided allocation details
+  allocationDetail?: DepartmentAllocationDetail;
 }
 
 /**
@@ -173,4 +210,34 @@ export interface EstimationContext {
   regulationText: string;
   effectiveDate?: Date;
   companyProfile: CompanyProfile;
+}
+
+/**
+ * Phase 1: Multi-Scenario Modeling
+ * Enhanced scenario analysis with sensitivity and alternatives
+ */
+export interface SensitivityScenario {
+  scenarioName: string;
+  parameters: Record<string, number>;
+  oneTimeCostLow: number;
+  oneTimeCostHigh: number;
+  recurringCostAnnual: number;
+  confidence: number;
+}
+
+/**
+ * Phase 1: Portfolio Analytics
+ * Aggregated insights across all estimates
+ */
+export interface PortfolioInsight {
+  totalRegulations: number;
+  totalComplexity: 'LOW' | 'MEDIUM' | 'HIGH';
+  urgencyRanking: Array<{
+    regulationTitle: string;
+    estimatedCostImpact: number;
+    riskLevel: RiskLevel;
+    implementationWindow: number; // days
+  }>;
+  budgetingRecommendation?: string;
+  prioritizedNextSteps: string[];
 }

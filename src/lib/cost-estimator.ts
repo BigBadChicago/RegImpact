@@ -217,6 +217,15 @@ function extractCostDriversDeterministic(
       estimatedCost: 30000,
       confidence: 0.7,
       department: Department.IT,
+      evidence: [
+        {
+          type: 'INDUSTRY_BENCHMARK',
+          reference: 'Privacy regulation compliance - Portal development typical cost',
+          confidence: 0.7,
+          estimatedCost: 25000,
+        },
+      ],
+      notes: 'Portal development typically includes user authentication, data export, and audit logging',
     });
   }
 
@@ -229,6 +238,15 @@ function extractCostDriversDeterministic(
       estimatedCost: 60000,
       confidence: 0.8,
       department: Department.COMPLIANCE,
+      evidence: [
+        {
+          type: 'INDUSTRY_BENCHMARK',
+          reference: 'Privacy officer salary benchmark - Mid-market companies',
+          confidence: 0.8,
+          estimatedCost: 65000,
+        },
+      ],
+      notes: 'Annual FTE equivalent for compliance officer role',
     });
   }
 
@@ -241,6 +259,15 @@ function extractCostDriversDeterministic(
       estimatedCost: 12000,
       confidence: 0.85,
       department: Department.COMPLIANCE,
+      evidence: [
+        {
+          type: 'INDUSTRY_BENCHMARK',
+          reference: 'Internal audit program - Annual cost estimate',
+          confidence: 0.85,
+          estimatedCost: 12000,
+        },
+      ],
+      notes: 'Annual audit and assessment activities including internal reviews',
     });
   }
 
@@ -253,6 +280,15 @@ function extractCostDriversDeterministic(
       estimatedCost: 8000,
       confidence: 0.85,
       department: Department.HR,
+      evidence: [
+        {
+          type: 'INDUSTRY_BENCHMARK',
+          reference: 'Compliance training program - Annual per employee',
+          confidence: 0.85,
+          estimatedCost: 7500,
+        },
+      ],
+      notes: 'Employee training on regulatory requirements and compliance procedures',
     });
   }
 
@@ -265,6 +301,15 @@ function extractCostDriversDeterministic(
       estimatedCost: 5000,
       confidence: 0.9,
       department: Department.LEGAL,
+      evidence: [
+        {
+          type: 'VENDOR_QUOTE',
+          reference: 'Legal services - Policy review and compliance analysis',
+          confidence: 0.9,
+          estimatedCost: 5000,
+        },
+      ],
+      notes: 'Legal review to ensure policies comply with regulation requirements',
     });
   }
 
@@ -278,6 +323,13 @@ function extractCostDriversDeterministic(
       estimatedCost: 5000,
       confidence: 0.75,
       department: Department.COMPLIANCE,
+      evidence: [
+        {
+          type: 'ASSUMPTION',
+          reference: 'Estimated annual fees based on regulation text patterns',
+          confidence: 0.75,
+        },
+      ],
     });
   }
 
@@ -350,6 +402,97 @@ export function calculateImplementationCost(
     confidence: avgConfidence,
     createdAt: new Date(),
   };
+}
+
+/**
+ * AI-powered department allocation with detailed breakdown
+ * Refines initial allocation based on regulation context and company profile
+ */
+async function allocateToDepartmentsWithAI(
+  drivers: CostDriver[],
+  profile: CompanyProfile,
+  regulationTitle: string
+): Promise<DepartmentCostBreakdown[]> {
+  try {
+    const baseBreakdown = allocateToDepartments(drivers, profile);
+
+    console.log(`[CostEstimator] AI department allocation (~$0.002-0.003 cost)`);
+
+    const response = await retryWithBackoff(() =>
+      openai.chat.completions.create({
+        model: 'gpt-4-turbo',
+        temperature: 0.3,
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'system',
+            content: `You are a compliance cost allocation expert. Refine cost driver allocation to departments based on regulation context and company profile. Output ONLY valid JSON.`,
+          },
+          {
+            role: 'user',
+            content: `Regulation: ${regulationTitle}
+Company: ${profile.industry} industry, ${profile.employeeCount} employees
+
+Current allocation:
+${JSON.stringify(baseBreakdown, null, 2)}
+
+Based on the regulation requirements and company profile:
+1. Are there alternative department allocations?
+2. What specific tasks should each department perform?
+3. What FTE breakdown makes sense?
+4. What are key risks/sequencing concerns?
+
+Respond with JSON:
+{
+  "refinements": [
+    {
+      "department": "IT|HR|LEGAL|COMPLIANCE|FINANCE|OPERATIONS",
+      "allocationDetail": {
+        "oneTimeTasks": ["task 1", "task 2"],
+        "recurringTasks": ["task 1"],
+        "fteSplit": {"Senior Engineer": 0.5, "Analyst": 0.3},
+        "riskFactors": ["risk 1"],
+        "sequencing": ["step 1", "step 2"]
+      }
+    }
+  ]
+}`,
+          },
+        ],
+      })
+    );
+
+    const content = response.choices[0]?.message?.content || '{}';
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith('```json')) {
+      jsonStr = jsonStr.replace(/^```json\n/, '').replace(/\n```$/, '');
+    } else if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    const parsed = JSON.parse(jsonStr);
+    const refinements = parsed.refinements || [];
+
+    // Apply refinements to breakdown
+    const refinedBreakdown = baseBreakdown.map((dept) => {
+      const refinement = refinements.find(
+        (r: Record<string, unknown>) => r.department === dept.department
+      );
+      if (refinement?.allocationDetail) {
+        return {
+          ...dept,
+          allocationDetail: refinement.allocationDetail,
+        };
+      }
+      return dept;
+    });
+
+    console.log(`[CostEstimator] AI refined allocation for ${refinedBreakdown.length} departments`);
+    return refinedBreakdown;
+  } catch (error) {
+    console.error(`[CostEstimator] AI allocation failed, using base allocation:`, error);
+    return allocateToDepartments(drivers, profile);
+  }
 }
 
 /**
@@ -519,8 +662,29 @@ export async function estimateWithAI(
   // Extract cost drivers (uses AI if enabled)
   const drivers = await extractCostDrivers(regulationText, regulationTitle);
 
-  // Calculate with calibration
+  // Calculate base estimate with calibration
   const estimate = calculateImplementationCost(drivers, profile);
+
+  // Phase 1: AI-powered department allocation refinement
+  if (AI_ENABLED && regulationText.length > 100) {
+    try {
+      // Get AI-refined department breakdown
+      const refinedBreakdown = await allocateToDepartmentsWithAI(
+        drivers,
+        profile,
+        regulationTitle
+      );
+      
+      // Update estimate with refined breakdown
+      return {
+        ...estimate,
+        departmentBreakdown: refinedBreakdown,
+      };
+    } catch (error) {
+      console.warn(`[CostEstimator] AI refinement failed, using base allocation:`, error);
+      return estimate;
+    }
+  }
 
   return estimate;
 }
@@ -577,5 +741,303 @@ export function getCacheStats(): {
   return {
     driverCacheSize: costDriverCache.size,
     estimateCacheSize: estimateCache.size,
+  };
+}
+
+/**
+ * Phase 1: Sensitivity Analysis
+ * Analyzes impact of parameter changes on cost estimate
+ */
+export interface SensitivityAnalysis {
+  baselineOneTime: number;
+  baselineRecurring: number;
+  factors: Array<{
+    factor: 'sizeMultiplier' | 'industryMultiplier' | 'geoMultiplier' | 'techMaturity';
+    currentValue: number;
+    impactOnOneTime: { low: number; high: number; percentChange: number }[];
+    impactOnRecurring: { low: number; high: number; percentChange: number }[];
+    recommendation?: string;
+  }>;
+}
+
+/**
+ * Calculate sensitivity to different cost drivers
+ */
+export function calculateSensitivityAnalysis(
+  estimate: CostEstimate,
+  profile: CompanyProfile,
+  drivers: CostDriver[]
+): SensitivityAnalysis {
+  const baseOneTime = estimate.oneTimeCostLow;
+  const baseRecurring = estimate.recurringCostAnnual;
+
+  // Analyze size sensitivity
+  const sizeScenarios = [
+    profile.employeeCount * 0.5,
+    profile.employeeCount,
+    profile.employeeCount * 2,
+  ];
+  const sizeImpact = sizeScenarios.map((size) => {
+    const sizeMult = Math.pow(size / 100, 0.7);
+    const baseSizeMult = Math.pow(profile.employeeCount / 100, 0.7);
+    const multiplier = sizeMult / baseSizeMult;
+    return {
+      low: Math.round(baseOneTime * multiplier),
+      high: Math.round(estimate.oneTimeCostHigh * multiplier),
+      percentChange: Math.round((multiplier - 1) * 100),
+    };
+  });
+
+  // Analyze geographic sensitivity
+  const geoScenarios = [1, profile.geographicComplexity, profile.geographicComplexity * 2];
+  const geoImpact = geoScenarios.map((geoComplexity) => {
+    const geoMult = 1 + (geoComplexity - 1) * 0.05;
+    const baseGeoMult = 1 + (profile.geographicComplexity - 1) * 0.05;
+    const multiplier = geoMult / baseGeoMult;
+    return {
+      low: Math.round(baseOneTime * multiplier),
+      high: Math.round(estimate.oneTimeCostHigh * multiplier),
+      percentChange: Math.round((multiplier - 1) * 100),
+    };
+  });
+
+  // Analyze driver confidence impact
+  const confidenceVariation = drivers.map((driver) => {
+    // If confidence were 20% lower
+    const lowerConfidence = Math.max(0.3, driver.confidence - 0.2);
+    // If confidence were 20% higher
+    const higherConfidence = Math.min(1.0, driver.confidence + 0.2);
+    
+    const confidenceSpreadLow = 0.2 * (1 - lowerConfidence * 0.3);
+    const confidenceSpreadHigh = 0.2 * (1 - higherConfidence * 0.3);
+    
+    return {
+      low: Math.round(baseOneTime * (1 - confidenceSpreadHigh)),
+      high: Math.round(estimate.oneTimeCostHigh * (1 + confidenceSpreadLow)),
+      percentChange: Math.round(((1 + confidenceSpreadLow) - 1) * 100),
+    };
+  });
+
+  return {
+    baselineOneTime: baseOneTime,
+    baselineRecurring: baseRecurring,
+    factors: [
+      {
+        factor: 'sizeMultiplier',
+        currentValue: Math.pow(profile.employeeCount / 100, 0.7),
+        impactOnOneTime: sizeImpact,
+        impactOnRecurring: sizeImpact.map((s) => ({
+          low: Math.round(baseRecurring * (s.low / baseOneTime)),
+          high: Math.round(baseRecurring * (s.high / baseOneTime)),
+          percentChange: s.percentChange,
+        })),
+        recommendation:
+          profile.employeeCount > 500
+            ? 'Consider economies of scale at this size'
+            : undefined,
+      },
+      {
+        factor: 'geoMultiplier',
+        currentValue: 1 + (profile.geographicComplexity - 1) * 0.05,
+        impactOnOneTime: geoImpact,
+        impactOnRecurring: geoImpact.map((g) => ({
+          low: Math.round(baseRecurring * (g.low / baseOneTime)),
+          high: Math.round(baseRecurring * (g.high / baseOneTime)),
+          percentChange: g.percentChange,
+        })),
+        recommendation:
+          profile.geographicComplexity > 10
+            ? 'Multi-state complexity is driving costs'
+            : undefined,
+      },
+      {
+        factor: 'techMaturity',
+        currentValue: TECH_MATURITY_MULTIPLIERS[profile.techMaturity],
+        impactOnOneTime: confidenceVariation.slice(0, 3),
+        impactOnRecurring: confidenceVariation.slice(0, 3),
+        recommendation:
+          profile.techMaturity === TechMaturity.LOW
+            ? 'Investing in tech infrastructure could reduce long-term costs'
+            : undefined,
+      },
+    ],
+  };
+}
+
+/**
+ * Phase 1: Portfolio Trend Analysis
+ * Analyzes trends across multiple cost estimates
+ */
+export interface PortfolioTrend {
+  totalOneTimeLow: number;
+  totalOneTimeHigh: number;
+  totalRecurringAnnual: number;
+  estimateCount: number;
+  averageConfidence: number;
+  threeYearExposureLow: number;
+  threeYearExposureHigh: number;
+  costsByDepartment: Record<string, { oneTime: number; recurring: number }>;
+  costsByRisk: Record<'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH', number>;
+  topDrivers: Array<{
+    description: string;
+    category: string;
+    totalCost: number;
+    confidence: number;
+  }>;
+}
+
+/**
+ * Aggregate cost estimates into portfolio trends
+ */
+export function aggregatePortfolioTrends(estimates: CostEstimate[]): PortfolioTrend {
+  if (estimates.length === 0) {
+    return {
+      totalOneTimeLow: 0,
+      totalOneTimeHigh: 0,
+      totalRecurringAnnual: 0,
+      estimateCount: 0,
+      averageConfidence: 0,
+      threeYearExposureLow: 0,
+      threeYearExposureHigh: 0,
+      costsByDepartment: {},
+      costsByRisk: { MINIMAL: 0, LOW: 0, MEDIUM: 0, HIGH: 0 },
+      topDrivers: [],
+    };
+  }
+
+  // Aggregate costs
+  const totalOneTimeLow = estimates.reduce((sum, e) => sum + e.oneTimeCostLow, 0);
+  const totalOneTimeHigh = estimates.reduce((sum, e) => sum + e.oneTimeCostHigh, 0);
+  const totalRecurringAnnual = estimates.reduce(
+    (sum, e) => sum + e.recurringCostAnnual,
+    0
+  );
+  const averageConfidence =
+    estimates.reduce((sum, e) => sum + e.confidence, 0) / estimates.length;
+
+  // Department breakdown
+  const costsByDepartment: Record<string, { oneTime: number; recurring: number }> = {};
+  estimates.forEach((estimate) => {
+    estimate.departmentBreakdown.forEach((dept) => {
+      if (!costsByDepartment[dept.department]) {
+        costsByDepartment[dept.department] = { oneTime: 0, recurring: 0 };
+      }
+      costsByDepartment[dept.department].oneTime += dept.oneTimeCost;
+      costsByDepartment[dept.department].recurring += dept.recurringCostAnnual;
+    });
+  });
+
+  // Risk distribution (placeholder - assume standard scenarios)
+  const costsByRisk = { MINIMAL: 0, LOW: 0, MEDIUM: 0, HIGH: 0 };
+  estimates.forEach((estimate) => {
+    costsByRisk.LOW += estimate.oneTimeCostLow + estimate.recurringCostAnnual * 3;
+  });
+
+  // Top cost drivers
+  const allDrivers: Array<CostDriver & { estimateCost: number }> = [];
+  estimates.forEach((estimate) => {
+    estimate.costDrivers.forEach((driver) => {
+      allDrivers.push({ ...driver, estimateCost: driver.estimatedCost });
+    });
+  });
+
+  const topDrivers = allDrivers
+    .sort((a, b) => b.estimatedCost - a.estimatedCost)
+    .slice(0, 10)
+    .map((driver) => ({
+      description: driver.description,
+      category: driver.category,
+      totalCost: driver.estimatedCost,
+      confidence: driver.confidence,
+    }));
+
+  return {
+    totalOneTimeLow,
+    totalOneTimeHigh,
+    totalRecurringAnnual,
+    estimateCount: estimates.length,
+    averageConfidence,
+    threeYearExposureLow: totalOneTimeLow + totalRecurringAnnual * 3,
+    threeYearExposureHigh: totalOneTimeHigh + totalRecurringAnnual * 3,
+    costsByDepartment,
+    costsByRisk,
+    topDrivers,
+  };
+}
+
+/**
+ * Forecast portfolio trends based on historical data
+ */
+export interface PortfolioForecast {
+  currentYear: {
+    oneTimeLow: number;
+    oneTimeHigh: number;
+    recurringAnnual: number;
+  };
+  projections: Array<{
+    year: number;
+    oneTimeLow: number;
+    oneTimeHigh: number;
+    recurringAnnual: number;
+    cumulative: number;
+  }>;
+  riskFactors: string[];
+}
+
+export function forecastPortfolioTrends(
+  trends: PortfolioTrend,
+  years: number = 3
+): PortfolioForecast {
+  const projections = [];
+
+  // Assume 2% annual inflation in recurring costs
+  const inflationRate = 0.02;
+
+  for (let year = 1; year <= years; year++) {
+    const inflationMultiplier = Math.pow(1 + inflationRate, year - 1);
+    const projectedRecurring = Math.round(
+      trends.totalRecurringAnnual * inflationMultiplier
+    );
+    const projectedOneTimeLow = year === 1 ? trends.totalOneTimeLow : 0;
+    const projectedOneTimeHigh = year === 1 ? trends.totalOneTimeHigh : 0;
+
+    let cumulative: number = 0;
+    if (projections.length > 0) {
+      cumulative = projections.reduce(
+        (sum, p) => sum + p.oneTimeLow + p.recurringAnnual,
+        0
+      );
+    }
+    cumulative += projectedOneTimeLow + projectedRecurring;
+
+    projections.push({
+      year,
+      oneTimeLow: projectedOneTimeLow,
+      oneTimeHigh: projectedOneTimeHigh,
+      recurringAnnual: projectedRecurring,
+      cumulative,
+    });
+  }
+
+  // Identify risk factors
+  const riskFactors: string[] = [];
+  if (trends.estimateCount < 5) {
+    riskFactors.push('Limited estimate dataset - forecast may be inaccurate');
+  }
+  if (trends.averageConfidence < 0.7) {
+    riskFactors.push('Low average confidence scores - verify key assumptions');
+  }
+  if (trends.costsByDepartment['IT']?.oneTime > trends.totalOneTimeLow * 0.6) {
+    riskFactors.push('IT implementation costs are high - consider phased approach');
+  }
+
+  return {
+    currentYear: {
+      oneTimeLow: trends.totalOneTimeLow,
+      oneTimeHigh: trends.totalOneTimeHigh,
+      recurringAnnual: trends.totalRecurringAnnual,
+    },
+    projections,
+    riskFactors,
   };
 }
