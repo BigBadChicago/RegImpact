@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  postgres-test:
+    image: postgres:15
+    container_name: regimpact-test-db
+    environment:
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: regimpact_test
+      POSTGRES_USER: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - regimpact-test-data:/var/lib/postgresql/data
+
+volumes:
+  regimpact-test-data:
