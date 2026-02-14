@@ -29,6 +29,9 @@ export default async function DashboardPage() {
   // Note: Add customer-based filtering when jurisdiction monitoring is implemented in schema
   const regulationCount = await prisma.regulation.count();
   const policyDiffCount = await prisma.policyDiff.count();
+  const costEstimateCount = await prisma.costEstimate.count({
+    where: { customerId: user.customerId },
+  });
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -47,7 +50,7 @@ export default async function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white shadow-md rounded-lg p-6">
             <h3 className="text-sm font-medium text-gray-600 mb-2">
               Total Regulations
@@ -63,6 +66,15 @@ export default async function DashboardPage() {
             </h3>
             <p className="text-3xl font-bold text-gray-900">
               {policyDiffCount}
+            </p>
+          </div>
+
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">
+              Cost Estimates
+            </h3>
+            <p className="text-3xl font-bold text-gray-900">
+              {costEstimateCount}
             </p>
           </div>
 
@@ -106,14 +118,17 @@ export default async function DashboardPage() {
               </p>
             </div>
 
-            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60">
+            <Link
+              href="/dashboard/cost-estimates"
+              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               <h3 className="font-semibold text-gray-900 mb-2">
                 💰 Cost Estimates
               </h3>
               <p className="text-sm text-gray-600">
-                Coming soon - View compliance cost projections
+                AI-powered compliance cost projections ({costEstimateCount} estimates)
               </p>
-            </div>
+            </Link>
 
             <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60">
               <h3 className="font-semibold text-gray-900 mb-2">
