@@ -122,24 +122,35 @@ export const mockDeadlines = [
 
 /**
  * Mock cost estimate for compliance
+ * Updated to match CostEstimate schema
  */
 export const mockCostEstimate = {
   id: 'cost-1',
   regulationVersionId: mockRegulationVersions[1].id,
   customerId: 'customer-1',
-  estimatedCost: 75000,
-  costBreakdown: [
-    { item: 'Policy Review & Drafting', cost: 5000 },
-    { item: 'System Updates (Payroll & HR)', cost: 15000 },
-    { item: 'Employee Training', cost: 8000 },
-    { item: 'Compliance Audit', cost: 7000 },
-    { item: 'Increased Labor Costs (Annual)', cost: 40000 },
-  ],
-  confidenceLevel: 0.75,
-  notes:
-    'Estimates based on 250+ employee company. Actual costs may vary based on current payroll system.',
+  oneTimeCostLow: 30000,
+  oneTimeCostHigh: 40000,
+  recurringCostAnnual: 40000,
+  costDriversJson: {
+    drivers: [
+      { id: '1', category: 'LEGAL_REVIEW', description: 'Policy Review & Drafting', cost: 5000, isOneTime: true },
+      { id: '2', category: 'SYSTEM_CHANGES', description: 'System Updates (Payroll & HR)', cost: 15000, isOneTime: true },
+      { id: '3', category: 'TRAINING', description: 'Employee Training', cost: 8000, isOneTime: true },
+      { id: '4', category: 'AUDIT', description: 'Compliance Audit', cost: 7000, isOneTime: true },
+      { id: '5', category: 'PERSONNEL', description: 'Increased Labor Costs (Annual)', cost: 40000, isOneTime: false },
+    ],
+  },
+  departmentBreakdown: {
+    departments: [
+      { department: 'LEGAL', oneTimeCost: 5000, recurringCost: 0 },
+      { department: 'IT', oneTimeCost: 15000, recurringCost: 0 },
+      { department: 'HR', oneTimeCost: 8000, recurringCost: 8000 },
+      { department: 'COMPLIANCE', oneTimeCost: 7000, recurringCost: 32000 },
+    ],
+  },
+  estimationMethod: 'AI_CALIBRATED',
+  confidence: 0.75,
   createdAt: new Date('2025-12-15'),
-  updatedAt: new Date('2025-12-15'),
 }
 
 /**
