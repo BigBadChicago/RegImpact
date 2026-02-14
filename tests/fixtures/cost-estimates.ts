@@ -12,7 +12,6 @@ import {
   type CompanyProfile,
   type CostDriver,
   type DepartmentCostBreakdown,
-  type CostScenario,
   type ScenarioAnalysis,
   type CostEstimate,
 } from '@/types/cost-estimate';
@@ -41,7 +40,7 @@ export const mockCompanyProfiles: Record<string, CompanyProfile> = {
     industry: Industry.FINANCE,
     employeeCount: 1000,
     revenue: 500_000_000,
-    geographicComplexity: 50, // All states
+    geographicComplexity: 2, // Same as techStartup for size comparison
     techMaturity: TechMaturity.HIGH,
     riskAppetite: RiskLevel.LOW,
   },

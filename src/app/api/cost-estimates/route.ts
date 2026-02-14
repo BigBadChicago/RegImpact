@@ -37,7 +37,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const endDate = searchParams.get('endDate');
 
     // Build where clause
-    const whereClause: any = {
+    const whereClause: { customerId: string; createdAt?: { gte?: Date; lte?: Date } } = {
       customerId: user.customerId,
     };
 

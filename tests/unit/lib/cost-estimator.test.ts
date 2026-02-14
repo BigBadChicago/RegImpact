@@ -15,10 +15,8 @@ import {
 import {
   mockCompanyProfiles,
   mockPrivacyCostDrivers,
-  mockEmploymentCostDrivers,
-} from '@/tests/fixtures/cost-estimates';
+} from '../../fixtures/cost-estimates';
 import {
-  Industry,
   TechMaturity,
   Department,
   CostCategory,
@@ -49,7 +47,7 @@ describe('Cost Estimator', () => {
       expect(drivers.length).toBeGreaterThan(0);
 
       // Should identify system requirements
-      const systemDriver = drivers.find((d) =>
+      const systemDriver = drivers.find((d: any) =>
         d.description.toLowerCase().includes('portal')
       );
       expect(systemDriver).toBeDefined();
@@ -57,7 +55,7 @@ describe('Cost Estimator', () => {
       expect(systemDriver?.isOneTime).toBe(true);
 
       // Should identify personnel requirements
-      const personnelDriver = drivers.find((d) =>
+      const personnelDriver = drivers.find((d: any) =>
         d.description.toLowerCase().includes('officer')
       );
       expect(personnelDriver).toBeDefined();
@@ -65,7 +63,7 @@ describe('Cost Estimator', () => {
       expect(personnelDriver?.isOneTime).toBe(false);
 
       // Should identify audit requirements
-      const auditDriver = drivers.find((d) =>
+      const auditDriver = drivers.find((d: any) =>
         d.description.toLowerCase().includes('audit')
       );
       expect(auditDriver).toBeDefined();
@@ -77,7 +75,7 @@ describe('Cost Estimator', () => {
       const regulationText = 'Companies must provide annual training.';
       const drivers = await extractCostDrivers(regulationText, 'Test Regulation');
 
-      drivers.forEach((driver) => {
+      drivers.forEach((driver: any) => {
         expect(driver.confidence).toBeGreaterThanOrEqual(0);
         expect(driver.confidence).toBeLessThanOrEqual(1);
       });
@@ -90,8 +88,8 @@ describe('Cost Estimator', () => {
       `;
       const drivers = await extractCostDrivers(regulationText, 'Test Regulation');
 
-      const oneTimeCosts = drivers.filter((d) => d.isOneTime);
-      const recurringCosts = drivers.filter((d) => !d.isOneTime);
+      const oneTimeCosts = drivers.filter((d: any) => d.isOneTime);
+      const recurringCosts = drivers.filter((d: any) => !d.isOneTime);
 
       expect(oneTimeCosts.length).toBeGreaterThan(0);
       expect(recurringCosts.length).toBeGreaterThan(0);
@@ -163,7 +161,12 @@ describe('Cost Estimator', () => {
     it('should apply size multiplier with non-linear scaling', () => {
       const drivers = mockPrivacyCostDrivers;
       const smallProfile = mockCompanyProfiles.techStartup; // 50 employees
-      const largeProfile = mockCompanyProfiles.financeEnterprise; // 1000 employees
+      // Use same industry/geo as smallProfile to isolate size effect
+      const largeProfile = {
+        ...mockCompanyProfiles.techStartup,
+        employeeCount: 1000,
+        revenue: 500_000_000,
+      }; // 1000 employees (20x)
 
       const smallCost = calculateImplementationCost(drivers, smallProfile);
       const largeCost = calculateImplementationCost(drivers, largeProfile);
@@ -171,7 +174,9 @@ describe('Cost Estimator', () => {
       // Cost should increase with size, but not linearly (economies of scale)
       expect(largeCost.oneTimeCostLow).toBeGreaterThan(smallCost.oneTimeCostLow);
       const ratio = largeCost.oneTimeCostLow / smallCost.oneTimeCostLow;
+      // With 0.7 exponent: (1000/100)^0.7 / (50/100)^0.7 = 10^0.7 / 0.5^0.7 = 5.01 / 0.62 = ~8.1x
       expect(ratio).toBeLessThan(20); // Should not be 20x for 20x employees
+      expect(ratio).toBeGreaterThan(5); // But should be more than sqrt(20) = 4.5x
     });
 
     it('should apply geographic complexity multiplier', () => {
@@ -245,12 +250,12 @@ describe('Cost Estimator', () => {
       const breakdown = allocateToDepartments(drivers, profile);
 
       // Legal department should have legal review costs
-      const legal = breakdown.find((d) => d.department === Department.LEGAL);
+      const legal = breakdown.find((d: any) => d.department === Department.LEGAL);
       expect(legal).toBeDefined();
       expect(legal!.lineItems.length).toBeGreaterThan(0);
 
       // IT department should have system change costs
-      const it = breakdown.find((d) => d.department === Department.IT);
+      const it = breakdown.find((d: any) => d.department === Department.IT);
       expect(it).toBeDefined();
       expect(it!.lineItems.length).toBeGreaterThan(0);
     });
@@ -284,16 +289,19 @@ describe('Cost Estimator', () => {
       const profile = mockCompanyProfiles.techStartup;
 
       const cost = calculateImplementationCost(drivers, profile);
-      const breakdown = allocateToDepartments(drivers, profile);
+      const breakdown = cost.departmentBreakdown; // Use breakdown from cost estimate
 
-      const deptOneTimeTotal = breakdown.reduce((sum, d) => sum + d.oneTimeCost, 0);
+      const deptOneTimeTotal = breakdown.reduce((sum: number, d: any) => sum + d.oneTimeCost, 0);
       const deptRecurringTotal = breakdown.reduce(
-        (sum, d) => sum + d.recurringCostAnnual,
+        (sum: number, d: any) => sum + d.recurringCostAnnual,
         0
       );
 
+      // Calculate mid-point for comparison (department totals don't have confidence band)
+      const oneTimeCostMid = (cost.oneTimeCostLow + cost.oneTimeCostHigh) / 2;
+
       // Allow 1% tolerance for rounding
-      expect(Math.abs(deptOneTimeTotal - cost.oneTimeCostLow) / cost.oneTimeCostLow).toBeLessThan(0.01);
+      expect(Math.abs(deptOneTimeTotal - oneTimeCostMid) / oneTimeCostMid).toBeLessThan(0.01);
       expect(
         Math.abs(deptRecurringTotal - cost.recurringCostAnnual) /
           cost.recurringCostAnnual

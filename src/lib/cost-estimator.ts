@@ -29,7 +29,7 @@ const AI_ENABLED = process.env.ENABLE_AI_COST_EXTRACTION === 'true';
 
 // In-memory cache for cost estimation results
 const costDriverCache = new Map<string, CostDriver[]>();
-const estimateCache = new Map<string, any>();
+const estimateCache = new Map<string, CostEstimate>();
 
 // Industry multipliers based on regulatory complexity
 const INDUSTRY_MULTIPLIERS: Record<Industry, number> = {
@@ -100,7 +100,7 @@ export async function extractCostDrivers(
   if (AI_ENABLED) {
     return await extractCostDriversWithAI(regulationText, regulationTitle);
   } else {
-    return extractCostDriversDeterministic(regulationText, regulationTitle);
+    return extractCostDriversDeterministic(regulationText);
   }
 }
 
@@ -174,7 +174,7 @@ Respond ONLY with valid JSON:
 
     const parsed = JSON.parse(jsonStr);
     const drivers: CostDriver[] = (parsed.drivers || []).map(
-      (d: any, index: number) => ({
+      (d: Record<string, unknown>, index: number) => ({
         id: `driver-ai-${index + 1}`,
         category: d.category as CostCategory,
         description: d.description,
@@ -193,7 +193,7 @@ Respond ONLY with valid JSON:
     return drivers;
   } catch (error) {
     console.error(`[CostEstimator] AI extraction failed, falling back to deterministic:`, error);
-    return extractCostDriversDeterministic(regulationText, regulationTitle);
+    return extractCostDriversDeterministic(regulationText);
   }
 }
 
@@ -201,15 +201,14 @@ Respond ONLY with valid JSON:
  * Deterministic cost driver extraction (fallback/default)
  */
 function extractCostDriversDeterministic(
-  regulationText: string,
-  regulationTitle: string
+  regulationText: string
 ): Promise<CostDriver[]> {
   const text = regulationText.toLowerCase();
   const drivers: CostDriver[] = [];
   let driverId = 1;
 
   // Pattern matching for common requirements
-  if (text.includes('portal') || text.includes('system') || text.includes('dsar')) {
+  if (text.includes('portal') || text.includes('system') || text.includes('dsar') || text.includes('setup')) {
     drivers.push({
       id: `driver-det-${driverId++}`,
       category: CostCategory.SYSTEM_CHANGES,
@@ -269,6 +268,19 @@ function extractCostDriversDeterministic(
     });
   }
 
+  // Check for annual/recurring fee patterns
+  if (text.includes('annual') || text.includes('yearly') || text.includes('each year') || text.includes('reporting fee')) {
+    drivers.push({
+      id: `driver-det-${driverId++}`,
+      category: CostCategory.OTHER,
+      description: 'Annual reporting and compliance fees',
+      isOneTime: false,
+      estimatedCost: 5000,
+      confidence: 0.75,
+      department: Department.COMPLIANCE,
+    });
+  }
+
   // Always cache deterministic results too
   const cacheKey = createCacheKey(regulationText, 'drivers');
   costDriverCache.set(cacheKey, drivers);
@@ -322,8 +334,8 @@ export function calculateImplementationCost(
   const oneTimeCostLow = oneTimeCostMid * (1 - confidenceSpread);
   const oneTimeCostHigh = oneTimeCostMid * (1 + confidenceSpread);
 
-  // Allocate to departments
-  const departmentBreakdown = allocateToDepartments(drivers, profile);
+  // Allocate to departments (pass multiplier to apply same scaling)
+  const departmentBreakdown = allocateToDepartments(drivers, profile, multiplier);
 
   return {
     id: '', // Will be set when saving to DB
@@ -345,7 +357,8 @@ export function calculateImplementationCost(
  */
 export function allocateToDepartments(
   drivers: CostDriver[],
-  profile: CompanyProfile
+  profile: CompanyProfile,
+  multiplier: number = 1.0
 ): DepartmentCostBreakdown[] {
   const departments = [
     Department.LEGAL,
@@ -364,13 +377,17 @@ export function allocateToDepartments(
         return null;
       }
 
-      const oneTimeCost = deptDrivers
+      const baseOneTimeCost = deptDrivers
         .filter((d) => d.isOneTime)
         .reduce((sum, d) => sum + d.estimatedCost, 0);
 
-      const recurringCostAnnual = deptDrivers
+      const baseRecurringCost = deptDrivers
         .filter((d) => !d.isOneTime)
         .reduce((sum, d) => sum + d.estimatedCost, 0);
+
+      // Apply the same multiplier used in overall calculation
+      const oneTimeCost = baseOneTimeCost * multiplier;
+      const recurringCostAnnual = baseRecurringCost * multiplier;
 
       // Estimate FTE impact (rough heuristic: $100K = 1 FTE)
       const fteImpact = parseFloat(
@@ -381,7 +398,7 @@ export function allocateToDepartments(
       const deptCode = dept.substring(0, 4).toUpperCase();
       const budgetCode = `${deptCode}-COMP-001`;
 
-      return {
+      const breakdown: DepartmentCostBreakdown = {
         department: dept,
         oneTimeCost: Math.round(oneTimeCost),
         recurringCostAnnual: Math.round(recurringCostAnnual),
@@ -389,8 +406,9 @@ export function allocateToDepartments(
         budgetCode,
         lineItems: deptDrivers,
       };
+      return breakdown;
     })
-    .filter((d): d is DepartmentCostBreakdown => d !== null);
+    .filter((d) => d !== null) as DepartmentCostBreakdown[];
 }
 
 /**

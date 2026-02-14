@@ -3,7 +3,7 @@
  * Tests the complete cost estimation flow including auth, DB, and AI
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it } from 'vitest';
 
 /**
  * Integration tests for POST /api/regulations/[id]/cost-estimate
