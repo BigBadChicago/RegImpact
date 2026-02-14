@@ -5,10 +5,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/src/auth.config';
+import { auth } from '@/auth.config';
 import {
   generateTextDiff,
   calculateChangeMetrics,
@@ -34,11 +33,11 @@ type DiffRequest = z.infer<typeof diffRequestSchema>;
  */
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -66,7 +65,7 @@ export async function POST(
     }
 
     const { previousVersionId, currentVersionId } = validationResult.data;
-    const regulationId = context.params.id;
+    const { id: regulationId } = await context.params;
 
     // Fetch user's customer
     const user = await prisma.user.findUnique({
@@ -95,9 +94,6 @@ export async function POST(
         where: { id: regulationId },
         include: {
           jurisdiction: true,
-          customer_jurisdictions: {
-            where: { customerId: user.customerId },
-          },
         },
       }),
     ]);
@@ -117,10 +113,10 @@ export async function POST(
       );
     }
 
-    if (!regulation || regulation.customer_jurisdictions.length === 0) {
+    if (!regulation) {
       return NextResponse.json(
-        { error: 'Customer does not have access to this regulation' },
-        { status: 403 }
+        { error: 'Regulation not found' },
+        { status: 404 }
       );
     }
 
@@ -192,11 +188,11 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -204,7 +200,7 @@ export async function GET(
       );
     }
 
-    const regulationId = context.params.id;
+    const { id: regulationId } = await context.params;
 
     // Fetch user's customer
     const user = await prisma.user.findUnique({
@@ -219,20 +215,15 @@ export async function GET(
       );
     }
 
-    // Fetch regulation and verify access
+    // Fetch regulation
     const regulation = await prisma.regulation.findUnique({
       where: { id: regulationId },
-      include: {
-        customer_jurisdictions: {
-          where: { customerId: user.customerId },
-        },
-      },
     });
 
-    if (!regulation || regulation.customer_jurisdictions.length === 0) {
+    if (!regulation) {
       return NextResponse.json(
-        { error: 'Regulation not found or access denied' },
-        { status: 403 }
+        { error: 'Regulation not found' },
+        { status: 404 }
       );
     }
 

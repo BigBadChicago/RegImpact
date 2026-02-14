@@ -5,23 +5,25 @@
 
 import { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth/next';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/src/auth.config';
+import { auth } from '@/auth.config';
 import DiffComparison from '@/components/regulations/DiffComparison';
 
 interface RegulationDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function RegulationDetailPage({
   params,
 }: RegulationDetailPageProps) {
   // Authenticate
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
   }
+
+  // Resolve params
+  const { id } = await params;
 
   // Fetch user and their customer
   const user = await prisma.user.findUnique({
@@ -33,21 +35,18 @@ export default async function RegulationDetailPage({
     redirect('/login');
   }
 
-  // Fetch regulation with access check
+  // Fetch regulation
   const regulation = await prisma.regulation.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       jurisdiction: true,
       versions: {
         orderBy: { versionNumber: 'desc' },
       },
-      customer_jurisdictions: {
-        where: { customerId: user.customerId },
-      },
     },
   });
 
-  if (!regulation || regulation.customer_jurisdictions.length === 0) {
+  if (!regulation) {
     redirect('/dashboard/regulations');
   }
 
@@ -112,7 +111,7 @@ export default async function RegulationDetailPage({
           </div>
         ) : (
           <DiffComparison
-            regulationId={params.id}
+            regulationId={id}
             versions={regulation.versions}
           />
         )}

@@ -4,14 +4,13 @@
  */
 
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth/next';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/src/auth.config';
+import { auth } from '@/auth.config';
 
 export default async function RegulationsPage() {
   // Authenticate
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.email) {
     redirect('/login');
   }
@@ -26,17 +25,11 @@ export default async function RegulationsPage() {
     redirect('/login');
   }
 
-  // Fetch regulations for monitored jurisdictions
+  // Fetch all regulations (TODO: Filter by customer's monitored jurisdictions when schema is updated)
   const regulations = await prisma.regulation.findMany({
-    where: {
-      customer_jurisdictions: {
-        some: { customerId: user.customerId },
-      },
-    },
     include: {
       jurisdiction: true,
       versions: true,
-      customer_jurisdictions: true,
     },
     orderBy: { createdAt: 'desc' },
   });

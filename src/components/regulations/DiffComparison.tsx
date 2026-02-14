@@ -8,7 +8,7 @@
 import { useState, ReactNode } from 'react';
 import VersionSelector from './VersionSelector';
 import DiffViewer from './DiffViewer';
-import { SignificanceScore, PolicyDiffSummary } from '@/types/policydiff';
+import { SignificanceScore } from '@/types/policydiff';
 
 interface Version {
   id: string;
@@ -22,10 +22,14 @@ interface DiffComparisonProps {
   versions: Version[];
 }
 
-interface DiffResponse extends PolicyDiffSummary {
+interface DiffResponse {
   id: string;
   diffText: string;
+  summary: string;
+  keyChanges: string[];
+  obligations: string[];
   significanceScore: SignificanceScore;
+  aiConfidence: number;
 }
 
 export default function DiffComparison({
