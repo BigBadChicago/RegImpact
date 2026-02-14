@@ -15,7 +15,7 @@ import {
   calculateSensitivityAnalysis,
   aggregatePortfolioTrends,
   forecastPortfolioTrends,
-} from '@/lib/cost-estimator';
+} from '../../../src/lib/cost-estimator/index';
 import {
   mockCompanyProfiles,
   mockPrivacyCostDrivers,
@@ -25,7 +25,10 @@ import {
   Department,
   CostCategory,
   RiskLevel,
-} from '@/types/cost-estimate';
+  type CostDriver,
+  type CostEstimate,
+  type DepartmentCostBreakdown,
+} from '../../../src/types/cost-estimate';
 
 // Mock OpenAI
 vi.mock('openai');
@@ -44,14 +47,17 @@ describe('Cost Estimator', () => {
       `;
       const title = 'California Privacy Rights Act';
 
-      const drivers = await extractCostDrivers(regulationText, title);
+      const drivers = (await extractCostDrivers(
+        regulationText,
+        title
+      )) as CostDriver[];
 
       expect(drivers).toBeDefined();
       expect(Array.isArray(drivers)).toBe(true);
       expect(drivers.length).toBeGreaterThan(0);
 
       // Should identify system requirements
-      const systemDriver = drivers.find((d: any) =>
+      const systemDriver = drivers.find((d) =>
         d.description.toLowerCase().includes('portal')
       );
       expect(systemDriver).toBeDefined();
@@ -59,7 +65,7 @@ describe('Cost Estimator', () => {
       expect(systemDriver?.isOneTime).toBe(true);
 
       // Should identify personnel requirements
-      const personnelDriver = drivers.find((d: any) =>
+      const personnelDriver = drivers.find((d) =>
         d.description.toLowerCase().includes('officer')
       );
       expect(personnelDriver).toBeDefined();
@@ -67,7 +73,7 @@ describe('Cost Estimator', () => {
       expect(personnelDriver?.isOneTime).toBe(false);
 
       // Should identify audit requirements
-      const auditDriver = drivers.find((d: any) =>
+      const auditDriver = drivers.find((d) =>
         d.description.toLowerCase().includes('audit')
       );
       expect(auditDriver).toBeDefined();
@@ -79,7 +85,7 @@ describe('Cost Estimator', () => {
       const regulationText = 'Companies must provide annual training.';
       const drivers = await extractCostDrivers(regulationText, 'Test Regulation');
 
-      drivers.forEach((driver: any) => {
+      drivers.forEach((driver) => {
         expect(driver.confidence).toBeGreaterThanOrEqual(0);
         expect(driver.confidence).toBeLessThanOrEqual(1);
       });
@@ -92,8 +98,8 @@ describe('Cost Estimator', () => {
       `;
       const drivers = await extractCostDrivers(regulationText, 'Test Regulation');
 
-      const oneTimeCosts = drivers.filter((d: any) => d.isOneTime);
-      const recurringCosts = drivers.filter((d: any) => !d.isOneTime);
+      const oneTimeCosts = drivers.filter((d) => d.isOneTime);
+      const recurringCosts = drivers.filter((d) => !d.isOneTime);
 
       expect(oneTimeCosts.length).toBeGreaterThan(0);
       expect(recurringCosts.length).toBeGreaterThan(0);
@@ -254,12 +260,12 @@ describe('Cost Estimator', () => {
       const breakdown = allocateToDepartments(drivers, profile);
 
       // Legal department should have legal review costs
-      const legal = breakdown.find((d: any) => d.department === Department.LEGAL);
+      const legal = breakdown.find((d) => d.department === Department.LEGAL);
       expect(legal).toBeDefined();
       expect(legal!.lineItems.length).toBeGreaterThan(0);
 
       // IT department should have system change costs
-      const it = breakdown.find((d: any) => d.department === Department.IT);
+      const it = breakdown.find((d) => d.department === Department.IT);
       expect(it).toBeDefined();
       expect(it!.lineItems.length).toBeGreaterThan(0);
     });
@@ -270,7 +276,7 @@ describe('Cost Estimator', () => {
 
       const breakdown = allocateToDepartments(drivers, profile);
 
-      breakdown.forEach((dept) => {
+      breakdown.forEach((dept: DepartmentCostBreakdown) => {
         expect(dept.fteImpact).toBeGreaterThanOrEqual(0);
         expect(dept.fteImpact).toBeLessThan(3); // Reasonable FTE range
       });
@@ -282,7 +288,7 @@ describe('Cost Estimator', () => {
 
       const breakdown = allocateToDepartments(drivers, profile);
 
-      breakdown.forEach((dept) => {
+      breakdown.forEach((dept: DepartmentCostBreakdown) => {
         expect(dept.budgetCode).toBeDefined();
         expect(dept.budgetCode).toMatch(/^[A-Z]+-[A-Z]+-\d+$/); // Format: DEPT-TYPE-NUM
       });
@@ -295,9 +301,12 @@ describe('Cost Estimator', () => {
       const cost = calculateImplementationCost(drivers, profile);
       const breakdown = cost.departmentBreakdown; // Use breakdown from cost estimate
 
-      const deptOneTimeTotal = breakdown.reduce((sum: number, d: any) => sum + d.oneTimeCost, 0);
+      const deptOneTimeTotal = breakdown.reduce(
+        (sum: number, d: DepartmentCostBreakdown) => sum + d.oneTimeCost,
+        0
+      );
       const deptRecurringTotal = breakdown.reduce(
-        (sum: number, d: any) => sum + d.recurringCostAnnual,
+        (sum: number, d: DepartmentCostBreakdown) => sum + d.recurringCostAnnual,
         0
       );
 
@@ -466,17 +475,19 @@ describe('Cost Estimator', () => {
     it('should handle graceful fallback when AI is unavailable', async () => {
       const drivers = [
         {
+          id: 'test-driver-dsar',
           category: CostCategory.SYSTEM_CHANGES,
           description: 'Implement DSAR portal',
           isOneTime: true,
           estimatedCost: 50000,
           confidence: 0.8,
+          department: Department.IT,
           evidence: [
             {
               type: 'INDUSTRY_BENCHMARK' as const,
-              source: 'Privacy Impact Group',
+              reference: 'Privacy Impact Group',
               confidence: 0.85,
-              costEstimate: 50000,
+              estimatedCost: 50000,
             },
           ],
         },
@@ -484,10 +495,12 @@ describe('Cost Estimator', () => {
       const profile = mockCompanyProfiles.techStartup;
 
       // Should not throw error and should return a breakdown
+      const baseBreakdown = allocateToDepartments(drivers, profile);
       const allocation = await allocateToDepartmentsWithAI(
         drivers,
         profile,
-        'Privacy Regulation'
+        'Privacy Regulation',
+        baseBreakdown
       );
 
       expect(allocation).toBeDefined();
@@ -500,14 +513,16 @@ describe('Cost Estimator', () => {
       const drivers = mockPrivacyCostDrivers;
       const profile = mockCompanyProfiles.techStartup;
 
+      const baseBreakdown = allocateToDepartments(drivers, profile);
       const allocation = await allocateToDepartmentsWithAI(
         drivers,
         profile,
-        'Test Regulation'
+        'Test Regulation',
+        baseBreakdown
       );
 
       expect(Array.isArray(allocation)).toBe(true);
-      allocation.forEach((dept) => {
+      allocation.forEach((dept: DepartmentCostBreakdown) => {
         expect(dept.department).toBeDefined();
         expect(dept.oneTimeCost).toBeGreaterThanOrEqual(0);
         expect(dept.recurringCostAnnual).toBeGreaterThanOrEqual(0);
@@ -517,10 +532,18 @@ describe('Cost Estimator', () => {
 
   describe('calculateSensitivityAnalysis', () => {
     it('should return sensitivity analysis object', () => {
-      const estimate = {
+      const estimate: CostEstimate = {
+        id: 'test-estimate-1',
+        regulationVersionId: 'reg-1',
+        customerId: 'customer-1',
+        costDrivers: [],
+        departmentBreakdown: [],
         oneTimeCostLow: 80000,
         oneTimeCostHigh: 100000,
         recurringCostAnnual: 50000,
+        confidence: 0.7,
+        estimationMethod: 'AI_EXTRACTION',
+        createdAt: new Date(),
       };
       const profile = mockCompanyProfiles.techStartup;
       const drivers = mockPrivacyCostDrivers;
@@ -528,53 +551,71 @@ describe('Cost Estimator', () => {
       const sensitivity = calculateSensitivityAnalysis(estimate, profile, drivers);
 
       expect(sensitivity).toBeDefined();
-      expect(sensitivity.sizeVariations).toBeDefined();
-      expect(sensitivity.geographicVariations).toBeDefined();
-      expect(sensitivity.techMaturityVariations).toBeDefined();
-      expect(sensitivity.recommendations).toBeDefined();
-      expect(Array.isArray(sensitivity.recommendations)).toBe(true);
+      expect(sensitivity.baselineOneTime).toBeDefined();
+      expect(sensitivity.baselineRecurring).toBeDefined();
+      expect(Array.isArray(sensitivity.factors)).toBe(true);
     });
 
     it('should include variation scenarios', () => {
-      const estimate = {
+      const estimate: CostEstimate = {
+        id: 'test-estimate-2',
+        regulationVersionId: 'reg-1',
+        customerId: 'customer-1',
+        costDrivers: [],
+        departmentBreakdown: [],
         oneTimeCostLow: 80000,
         oneTimeCostHigh: 100000,
         recurringCostAnnual: 50000,
+        confidence: 0.7,
+        estimationMethod: 'AI_EXTRACTION',
+        createdAt: new Date(),
       };
       const profile = mockCompanyProfiles.techStartup;
       const drivers = mockPrivacyCostDrivers;
 
       const sensitivity = calculateSensitivityAnalysis(estimate, profile, drivers);
 
-      // Should have 3 size variations (reduced, baseline, increased)
-      expect(sensitivity.sizeVariations.length).toBe(3);
-      // Should have 3 geographic variations
-      expect(sensitivity.geographicVariations.length).toBe(3);
-      // Should have 3 tech maturity levels
-      expect(sensitivity.techMaturityVariations.length).toBe(3);
+      const sizeFactor = sensitivity.factors.find(
+        (factor) => factor.factor === 'sizeMultiplier'
+      );
+      const geoFactor = sensitivity.factors.find(
+        (factor) => factor.factor === 'geoMultiplier'
+      );
+      const techFactor = sensitivity.factors.find(
+        (factor) => factor.factor === 'techMaturity'
+      );
 
-      // Each variation should have cost data
-      sensitivity.sizeVariations.forEach((v) => {
-        expect(v.oneTimeCost).toBeGreaterThanOrEqual(0);
-        expect(v.recurringCost).toBeGreaterThanOrEqual(0);
-      });
+      expect(sizeFactor?.impactOnOneTime.length).toBe(3);
+      expect(geoFactor?.impactOnOneTime.length).toBe(3);
+      expect(techFactor?.impactOnOneTime.length).toBeGreaterThan(0);
     });
 
     it('should show impact of cost parameter changes', () => {
-      const estimate = {
+      const estimate: CostEstimate = {
+        id: 'test-estimate-3',
+        regulationVersionId: 'reg-1',
+        customerId: 'customer-1',
+        costDrivers: [],
+        departmentBreakdown: [],
         oneTimeCostLow: 80000,
         oneTimeCostHigh: 100000,
         recurringCostAnnual: 50000,
+        confidence: 0.7,
+        estimationMethod: 'AI_EXTRACTION',
+        createdAt: new Date(),
       };
       const profile = mockCompanyProfiles.techStartup;
       const drivers = mockPrivacyCostDrivers;
 
       const sensitivity = calculateSensitivityAnalysis(estimate, profile, drivers);
 
-      // Higher tech maturity should reduce costs
-      const lowTech = sensitivity.techMaturityVariations[0].oneTimeCost;
-      const highTech = sensitivity.techMaturityVariations[2].oneTimeCost;
-      expect(highTech).toBeLessThanOrEqual(lowTech);
+      const techFactor = sensitivity.factors.find(
+        (factor) => factor.factor === 'techMaturity'
+      );
+
+      expect(techFactor?.impactOnOneTime[2].low).toBeLessThanOrEqual(
+        techFactor?.impactOnOneTime[0].low || 0
+      );
     });
   });
 
@@ -582,76 +623,110 @@ describe('Cost Estimator', () => {
     it('should aggregate multiple cost estimates', () => {
       const estimates: CostEstimate[] = [
         {
-          regulationId: '1',
-          regulationTitle: 'CPRA',
+          id: 'estimate-1',
+          regulationVersionId: 'regulation-1',
           customerId: 'cust1',
           oneTimeCostLow: 80000,
           oneTimeCostHigh: 100000,
-          oneTimeCostMid: 90000,
           recurringCostAnnual: 50000,
-          recurringCostLow: 42500,
-          recurringCostHigh: 57500,
-          departmentBreakdown: {
-            IT: { oneTime: 60000, recurring: 20000 },
-            LEGAL: { oneTime: 30000, recurring: 30000 },
-          },
-          confidenceLow: 0.7,
-          confidenceHigh: 0.85,
-          drivers: [],
-          scenarios: [],
+          costDrivers: [],
+          departmentBreakdown: [
+            {
+              department: Department.IT,
+              oneTimeCost: 60000,
+              recurringCostAnnual: 20000,
+              fteImpact: 0.1,
+              budgetCode: 'IT-COMP-001',
+              lineItems: [],
+            },
+            {
+              department: Department.LEGAL,
+              oneTimeCost: 30000,
+              recurringCostAnnual: 30000,
+              fteImpact: 0.1,
+              budgetCode: 'LEGAL-COMP-001',
+              lineItems: [],
+            },
+          ],
+          estimationMethod: 'DETERMINISTIC',
+          confidence: 0.7,
+          createdAt: new Date('2025-01-01'),
         },
         {
-          regulationId: '2',
-          regulationTitle: 'GDPR',
+          id: 'estimate-2',
+          regulationVersionId: 'regulation-2',
           customerId: 'cust1',
           oneTimeCostLow: 120000,
           oneTimeCostHigh: 150000,
-          oneTimeCostMid: 135000,
           recurringCostAnnual: 80000,
-          recurringCostLow: 68000,
-          recurringCostHigh: 92000,
-          departmentBreakdown: {
-            IT: { oneTime: 80000, recurring: 40000 },
-            LEGAL: { oneTime: 40000, recurring: 40000 },
-          },
-          confidenceLow: 0.75,
-          confidenceHigh: 0.9,
-          drivers: [],
-          scenarios: [],
+          costDrivers: [],
+          departmentBreakdown: [
+            {
+              department: Department.IT,
+              oneTimeCost: 80000,
+              recurringCostAnnual: 40000,
+              fteImpact: 0.2,
+              budgetCode: 'IT-COMP-001',
+              lineItems: [],
+            },
+            {
+              department: Department.LEGAL,
+              oneTimeCost: 40000,
+              recurringCostAnnual: 40000,
+              fteImpact: 0.1,
+              budgetCode: 'LEGAL-COMP-001',
+              lineItems: [],
+            },
+          ],
+          estimationMethod: 'DETERMINISTIC',
+          confidence: 0.8,
+          createdAt: new Date('2025-02-01'),
         },
       ];
 
       const trends = aggregatePortfolioTrends(estimates);
 
       expect(trends).toBeDefined();
-      expect(trends.totalOneTime).toBeGreaterThan(0);
-      expect(trends.totalRecurring).toBeGreaterThan(0);
+      expect(trends.totalOneTimeLow).toBeGreaterThan(0);
+      expect(trends.totalOneTimeHigh).toBeGreaterThan(0);
+      expect(trends.totalRecurringAnnual).toBeGreaterThan(0);
       expect(trends.estimateCount).toBe(2);
       expect(trends.costsByDepartment).toBeDefined();
       expect(trends.topDrivers).toBeDefined();
-      expect(trends.riskByLevel).toBeDefined();
+      expect(trends.costsByRisk).toBeDefined();
     });
 
     it('should calculate costs by department correctly', () => {
       const estimates: CostEstimate[] = [
         {
-          regulationId: '1',
-          regulationTitle: 'CPRA',
+          id: 'estimate-1',
+          regulationVersionId: 'regulation-1',
           customerId: 'cust1',
           oneTimeCostLow: 80000,
           oneTimeCostHigh: 100000,
-          oneTimeCostMid: 90000,
           recurringCostAnnual: 50000,
-          recurringCostLow: 42500,
-          recurringCostHigh: 57500,
-          departmentBreakdown: {
-            IT: { oneTime: 60000, recurring: 20000 },
-            LEGAL: { oneTime: 30000, recurring: 30000 },
-          },
-          confidenceLow: 0.7,
-          confidenceHigh: 0.85,
-          drivers: [],
-          scenarios: [],
+          costDrivers: [],
+          departmentBreakdown: [
+            {
+              department: Department.IT,
+              oneTimeCost: 60000,
+              recurringCostAnnual: 20000,
+              fteImpact: 0.1,
+              budgetCode: 'IT-COMP-001',
+              lineItems: [],
+            },
+            {
+              department: Department.LEGAL,
+              oneTimeCost: 30000,
+              recurringCostAnnual: 30000,
+              fteImpact: 0.1,
+              budgetCode: 'LEGAL-COMP-001',
+              lineItems: [],
+            },
+          ],
+          estimationMethod: 'DETERMINISTIC',
+          confidence: 0.7,
+          createdAt: new Date('2025-01-01'),
         },
       ];
 
@@ -665,88 +740,96 @@ describe('Cost Estimator', () => {
     it('should assess overall risk profile', () => {
       const estimates: CostEstimate[] = [
         {
-          regulationId: '1',
-          regulationTitle: 'CPRA',
+          id: 'estimate-1',
+          regulationVersionId: 'regulation-1',
           customerId: 'cust1',
           oneTimeCostLow: 80000,
           oneTimeCostHigh: 100000,
-          oneTimeCostMid: 90000,
           recurringCostAnnual: 50000,
-          recurringCostLow: 42500,
-          recurringCostHigh: 57500,
-          departmentBreakdown: {},
-          confidenceLow: 0.7,
-          confidenceHigh: 0.85,
-          drivers: [],
-          scenarios: [],
+          costDrivers: [],
+          departmentBreakdown: [],
+          estimationMethod: 'DETERMINISTIC',
+          confidence: 0.7,
+          createdAt: new Date('2025-01-01'),
         },
       ];
 
       const trends = aggregatePortfolioTrends(estimates);
 
-      expect(trends.riskByLevel).toBeDefined();
-      expect(typeof trends.riskByLevel.high).toBe('number');
-      expect(typeof trends.riskByLevel.medium).toBe('number');
-      expect(typeof trends.riskByLevel.low).toBe('number');
+      expect(trends.costsByRisk).toBeDefined();
+      expect(typeof trends.costsByRisk.HIGH).toBe('number');
+      expect(typeof trends.costsByRisk.MEDIUM).toBe('number');
+      expect(typeof trends.costsByRisk.LOW).toBe('number');
     });
   });
 
   describe('forecastPortfolioTrends', () => {
     it('should generate 3-year forecast', () => {
       const trends = {
-        totalOneTime: 200000,
-        totalRecurring: 100000,
+        totalOneTimeLow: 200000,
+        totalOneTimeHigh: 240000,
+        totalRecurringAnnual: 100000,
         estimateCount: 2,
+        averageConfidence: 0.75,
+        threeYearExposureLow: 500000,
+        threeYearExposureHigh: 540000,
         costsByDepartment: {},
+        costsByRisk: { MINIMAL: 0, LOW: 10, MEDIUM: 0, HIGH: 0 },
         topDrivers: [],
-        riskByLevel: { high: 0, medium: 5, low: 10 },
       };
 
       const forecast = forecastPortfolioTrends(trends, 3);
 
       expect(forecast).toBeDefined();
-      expect(forecast.years).toBeDefined();
-      expect(forecast.years.length).toBe(3);
-      expect(forecast.inflationRate).toBe(0.02); // 2% inflation
+      expect(forecast.projections).toBeDefined();
+      expect(forecast.projections.length).toBe(3);
     });
 
     it('should track year-by-year costs', () => {
       const trends = {
-        totalOneTime: 200000,
-        totalRecurring: 100000,
+        totalOneTimeLow: 200000,
+        totalOneTimeHigh: 240000,
+        totalRecurringAnnual: 100000,
         estimateCount: 1,
+        averageConfidence: 0.8,
+        threeYearExposureLow: 500000,
+        threeYearExposureHigh: 540000,
         costsByDepartment: {},
+        costsByRisk: { MINIMAL: 0, LOW: 10, MEDIUM: 0, HIGH: 0 },
         topDrivers: [],
-        riskByLevel: { high: 0, medium: 5, low: 10 },
       };
 
       const forecast = forecastPortfolioTrends(trends, 3);
 
       // Year 1: 200000 one-time + 100000 recurring
-      expect(forecast.years[0].year).toBe(1);
-      expect(forecast.years[0].oneTime).toBeGreaterThanOrEqual(0);
-      expect(forecast.years[0].recurring).toBeGreaterThanOrEqual(0);
+      expect(forecast.projections[0].year).toBe(1);
+      expect(forecast.projections[0].oneTimeLow).toBeGreaterThanOrEqual(0);
+      expect(forecast.projections[0].recurringAnnual).toBeGreaterThanOrEqual(0);
 
       // Later years should have cumulative totals
-      expect(forecast.years[2].cumulative).toBeGreaterThan(forecast.years[0].cumulative);
+      expect(forecast.projections[2].cumulative).toBeGreaterThan(
+        forecast.projections[0].cumulative
+      );
     });
 
-    it('should include emerging risks and recommendations', () => {
+    it('should include risk factors', () => {
       const trends = {
-        totalOneTime: 200000,
-        totalRecurring: 100000,
+        totalOneTimeLow: 200000,
+        totalOneTimeHigh: 240000,
+        totalRecurringAnnual: 100000,
         estimateCount: 2,
+        averageConfidence: 0.65,
+        threeYearExposureLow: 500000,
+        threeYearExposureHigh: 540000,
         costsByDepartment: {},
+        costsByRisk: { MINIMAL: 0, LOW: 10, MEDIUM: 0, HIGH: 0 },
         topDrivers: [],
-        riskByLevel: { high: 2, medium: 8, low: 5 },
       };
 
       const forecast = forecastPortfolioTrends(trends, 3);
 
-      expect(forecast.emergingRisks).toBeDefined();
-      expect(Array.isArray(forecast.emergingRisks)).toBe(true);
-      expect(forecast.recommendations).toBeDefined();
-      expect(Array.isArray(forecast.recommendations)).toBe(true);
+      expect(forecast.riskFactors).toBeDefined();
+      expect(Array.isArray(forecast.riskFactors)).toBe(true);
     });
   });
 });

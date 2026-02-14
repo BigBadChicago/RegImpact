@@ -28,6 +28,7 @@ export interface BoardReport {
     budgetCode: string;
   }[];
   scenarios: {
+    key: 'minimal' | 'standard' | 'bestInClass' | 'delay90Days';
     name: string;
     description: string;
     threeYearTotal: number;
@@ -85,8 +86,9 @@ export function generateBoardReport(
   }));
 
   // Scenarios
-  const scenarioList = [
+  const scenarioList: Array<{ key: 'minimal' | 'standard' | 'bestInClass' | 'delay90Days'; name: string; description: string; threeYearTotal: number; riskLevel: string; recommendationReason?: string }> = [
     {
+      key: 'minimal' as const,
       name: scenarios.minimal.name,
       description: scenarios.minimal.description,
       threeYearTotal: scenarios.minimal.threeYearTotal,
@@ -97,6 +99,7 @@ export function generateBoardReport(
           : undefined,
     },
     {
+      key: 'standard' as const,
       name: scenarios.standard.name,
       description: scenarios.standard.description,
       threeYearTotal: scenarios.standard.threeYearTotal,
@@ -107,6 +110,7 @@ export function generateBoardReport(
           : undefined,
     },
     {
+      key: 'bestInClass' as const,
       name: scenarios.bestInClass.name,
       description: scenarios.bestInClass.description,
       threeYearTotal: scenarios.bestInClass.threeYearTotal,
@@ -117,6 +121,7 @@ export function generateBoardReport(
           : undefined,
     },
     {
+      key: 'delay90Days' as const,
       name: scenarios.delay90Days.name,
       description: scenarios.delay90Days.description,
       threeYearTotal: scenarios.delay90Days.threeYearTotal,
@@ -462,7 +467,7 @@ export function formatBoardReportHTML(report: BoardReport): string {
       ${report.scenarios
         .map(
           (scenario) => `
-        <tr class="${scenario.name === report.scenarios.find((s) => s.recommendationReason)?.name ? 'recommended' : ''}">
+        <tr class="${scenario.key === report.recommendedScenario ? 'recommended' : ''}">
           <td><strong>${scenario.name}</strong><br/><small>${scenario.description}</small></td>
           <td>${formatCurrency(scenario.threeYearTotal)}</td>
           <td>${scenario.riskLevel}</td>

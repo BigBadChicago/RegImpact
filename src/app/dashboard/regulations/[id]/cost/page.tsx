@@ -8,7 +8,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import CostBreakdownTable from '@/components/cost/CostBreakdownTable';
-import type { CostEstimate, ScenarioAnalysis } from '@/types/cost-estimate';
+import type {
+  CostEstimate,
+  CostDriver,
+  DepartmentCostBreakdown,
+  ScenarioAnalysis,
+} from '@/types/cost-estimate';
+import { Department } from '@/types/cost-estimate';
 import {
   generateBoardReport,
   formatBoardReportHTML,
@@ -19,6 +25,53 @@ interface CostEstimateResponse extends CostEstimate {
   scenarios?: ScenarioAnalysis;
   regulationTitle?: string;
   jurisdiction?: string;
+}
+
+function normalizeEstimate(raw: CostEstimateResponse): CostEstimateResponse {
+  const rawDrivers = Array.isArray((raw as CostEstimateResponse).costDrivers)
+    ? (raw as CostEstimateResponse).costDrivers
+    : (raw as { costDriversJson?: { drivers?: unknown[] } }).costDriversJson
+        ?.drivers || [];
+
+  const costDrivers: CostDriver[] = (rawDrivers as Array<Record<string, unknown>>)
+    .map((driver, index) => ({
+      id: (driver.id as string) || `driver-${index + 1}`,
+      category: driver.category as CostDriver['category'],
+      description: (driver.description as string) || 'Unspecified driver',
+      isOneTime: Boolean(driver.isOneTime),
+      estimatedCost: Number(driver.estimatedCost || 0),
+      confidence: Number(driver.confidence || 0.7),
+      department: (driver.department as Department) || Department.IT,
+      evidence: driver.evidence as CostDriver['evidence'],
+      notes: driver.notes as CostDriver['notes'],
+      departmentAlternatives: driver.departmentAlternatives as CostDriver['departmentAlternatives'],
+    }))
+    .filter((driver) => Boolean(driver.description));
+
+  const rawDepartments = Array.isArray((raw as CostEstimateResponse).departmentBreakdown)
+    ? (raw as CostEstimateResponse).departmentBreakdown
+    : (raw as { departmentBreakdown?: { departments?: unknown[] } }).departmentBreakdown
+        ?.departments || [];
+
+  const departmentBreakdown: DepartmentCostBreakdown[] = (
+    rawDepartments as Array<Record<string, unknown>>
+  ).map((dept) => {
+    const department = (dept.department as Department) || Department.IT;
+    return {
+      department,
+      oneTimeCost: Number(dept.oneTimeCost || 0),
+      recurringCostAnnual: Number(dept.recurringCostAnnual || 0),
+      fteImpact: Number(dept.fteImpact || 0),
+      budgetCode: dept.budgetCode as string,
+      lineItems: costDrivers.filter((driver) => driver.department === department),
+    };
+  });
+
+  return {
+    ...raw,
+    costDrivers,
+    departmentBreakdown,
+  };
 }
 
 export default function CostEstimatePage() {
@@ -40,8 +93,8 @@ export default function CostEstimatePage() {
         );
 
         if (response.ok) {
-          const data = await response.json();
-          setEstimate(data);
+          const data = (await response.json()) as CostEstimateResponse;
+          setEstimate(normalizeEstimate(data));
         } else if (response.status === 404) {
           // No estimate exists yet
           setEstimate(null);
@@ -77,8 +130,8 @@ export default function CostEstimatePage() {
       );
 
       if (response.ok) {
-        const data = await response.json();
-        setEstimate(data);
+        const data = (await response.json()) as CostEstimateResponse;
+        setEstimate(normalizeEstimate(data));
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to generate cost estimate');

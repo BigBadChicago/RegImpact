@@ -10,9 +10,13 @@ import { auth } from '@/auth.config';
 import {
   aggregatePortfolioTrends,
   forecastPortfolioTrends,
-  calculateImplementationCost,
 } from '@/lib/cost-estimator';
-import { CostEstimate } from '@/types/cost-estimate';
+import {
+  CostEstimate,
+  CostDriver,
+  Department,
+  DepartmentCostBreakdown,
+} from '@/types/cost-estimate';
 
 export default async function PortfolioAnalyticsPage() {
   // Authenticate
@@ -48,36 +52,66 @@ export default async function PortfolioAnalyticsPage() {
     orderBy: { createdAt: 'desc' },
   });
 
+  const normalizeDrivers = (rawDrivers: unknown[]): CostDriver[] => {
+    return (rawDrivers as Array<Record<string, unknown>>)
+      .map((driver, index) => ({
+        id: (driver.id as string) || `driver-${index + 1}`,
+        category: driver.category as CostDriver['category'],
+        description: (driver.description as string) || 'Unspecified driver',
+        isOneTime: Boolean(driver.isOneTime),
+        estimatedCost: Number(driver.estimatedCost || 0),
+        confidence: Number(driver.confidence || 0.7),
+        department: (driver.department as Department) || Department.IT,
+        evidence: driver.evidence as CostDriver['evidence'],
+        notes: driver.notes as CostDriver['notes'],
+        departmentAlternatives: driver.departmentAlternatives as CostDriver['departmentAlternatives'],
+      }))
+      .filter((driver) => Boolean(driver.description));
+  };
+
+  const normalizeDepartments = (
+    rawDepartments: unknown[],
+    drivers: CostDriver[]
+  ): DepartmentCostBreakdown[] => {
+    return (rawDepartments as Array<Record<string, unknown>>).map((dept) => {
+      const department = (dept.department as Department) || Department.IT;
+      return {
+        department,
+        oneTimeCost: Number(dept.oneTimeCost || 0),
+        recurringCostAnnual: Number(dept.recurringCostAnnual || 0),
+        fteImpact: Number(dept.fteImpact || 0),
+        budgetCode: dept.budgetCode as string,
+        lineItems: drivers.filter((driver) => driver.department === department),
+      };
+    });
+  };
+
   // Convert database records to domain objects for analysis
-  const estimates: CostEstimate[] = costEstimates.map((est) => ({
-    regulationId: est.regulationVersionId,
-    regulationTitle: est.regulationVersion.regulation.title,
-    customerId: est.customerId,
-    oneTimeCostLow: est.oneTimeCostLow,
-    oneTimeCostHigh: est.oneTimeCostHigh,
-    oneTimeCostMid:
-      (est.oneTimeCostLow + est.oneTimeCostHigh) / 2,
-    recurringCostAnnual: est.recurringCostAnnual,
-    recurringCostLow: est.recurringCostAnnual * 0.85,
-    recurringCostHigh: est.recurringCostAnnual * 1.15,
-    departmentBreakdown: est.departmentBreakdown as Record<
-      string,
-      { oneTime: number; recurring: number }
-    > || {},
-    confidenceLow:
-      typeof est.confidence === 'number' ? est.confidence : 0.7,
-    confidenceHigh:
-      typeof est.confidence === 'number' ? est.confidence : 0.85,
-    drivers: est.drivers as Array<{
-      category: string;
-      oneTime?: number;
-      recurring?: number;
-    }> || [],
-    scenarios: est.scenarios as Array<{
-      name: string;
-      cost: number;
-    }> || [],
-  }));
+  const estimates: CostEstimate[] = costEstimates.map((est) => {
+    const rawDrivers =
+      (est.costDriversJson as { drivers?: unknown[] })?.drivers || [];
+    const costDrivers = normalizeDrivers(rawDrivers);
+    const rawDepartments =
+      (est.departmentBreakdown as { departments?: unknown[] })?.departments || [];
+    const departmentBreakdown = normalizeDepartments(
+      rawDepartments,
+      costDrivers
+    );
+
+    return {
+      id: est.id,
+      regulationVersionId: est.regulationVersionId,
+      customerId: est.customerId,
+      oneTimeCostLow: est.oneTimeCostLow,
+      oneTimeCostHigh: est.oneTimeCostHigh,
+      recurringCostAnnual: est.recurringCostAnnual,
+      costDrivers,
+      departmentBreakdown,
+      estimationMethod: est.estimationMethod,
+      confidence: est.confidence,
+      createdAt: est.createdAt,
+    };
+  });
 
   // Aggregate portfolio trends
   const portfolioTrends = aggregatePortfolioTrends(estimates);
@@ -108,9 +142,11 @@ export default async function PortfolioAnalyticsPage() {
     .sort((a, b) => b.total - a.total);
 
   // Get top risk drivers
-  const topRisks = portfolioTrends.riskByLevel;
-  const combinedRiskCount =
-    topRisks.high + topRisks.medium + topRisks.low;
+  const riskTotals = portfolioTrends.costsByRisk;
+  const totalRiskExposure = Object.values(riskTotals).reduce(
+    (sum, value) => sum + value,
+    0
+  );
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -149,7 +185,8 @@ export default async function PortfolioAnalyticsPage() {
                 One-Time Costs
               </p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
-                {formatCurrency(portfolioTrends.totalOneTime)}
+                {formatCurrency(portfolioTrends.totalOneTimeLow)} -
+                {formatCurrency(portfolioTrends.totalOneTimeHigh)}
               </p>
               <p className="text-xs text-gray-500 mt-2">
                 Across {estimates.length} regulation{estimates.length !== 1 ? 's' : ''}
@@ -162,7 +199,7 @@ export default async function PortfolioAnalyticsPage() {
               </p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 {formatCurrency(
-                  portfolioTrends.totalRecurring
+                  portfolioTrends.totalRecurringAnnual
                 )}
               </p>
               <p className="text-xs text-gray-500 mt-2">
@@ -176,8 +213,10 @@ export default async function PortfolioAnalyticsPage() {
               </p>
               <p className="text-2xl font-bold text-blue-600 mt-2">
                 {formatCurrency(
-                  portfolioTrends.totalOneTime +
-                    portfolioTrends.totalRecurring * 3
+                  portfolioTrends.threeYearExposureLow
+                )} -
+                {formatCurrency(
+                  portfolioTrends.threeYearExposureHigh
                 )}
               </p>
               <p className="text-xs text-gray-500 mt-2">
@@ -191,17 +230,17 @@ export default async function PortfolioAnalyticsPage() {
               </p>
               <div className="mt-2 flex gap-2">
                 <span className="inline-block px-2 py-1 text-xs font-bold text-white bg-red-600 rounded">
-                  H: {topRisks.high}
+                  H: {formatCurrency(riskTotals.HIGH)}
                 </span>
                 <span className="inline-block px-2 py-1 text-xs font-bold text-white bg-yellow-600 rounded">
-                  M: {topRisks.medium}
+                  M: {formatCurrency(riskTotals.MEDIUM)}
                 </span>
                 <span className="inline-block px-2 py-1 text-xs font-bold text-white bg-green-600 rounded">
-                  L: {topRisks.low}
+                  L: {formatCurrency(riskTotals.LOW)}
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                {combinedRiskCount} total drivers identified
+                {formatCurrency(totalRiskExposure)} total risk exposure
               </p>
             </div>
           </div>
@@ -235,7 +274,7 @@ export default async function PortfolioAnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {forecast.years.map((year, idx) => (
+                  {forecast.projections.map((year, idx) => (
                     <tr
                       key={idx}
                       className="border-b hover:bg-gray-50"
@@ -244,15 +283,25 @@ export default async function PortfolioAnalyticsPage() {
                         Year {year.year}
                       </td>
                       <td className="py-3 px-4 text-right text-gray-600">
-                        {formatCurrency(year.oneTime)}
+                        {year.oneTimeLow === year.oneTimeHigh
+                          ? formatCurrency(year.oneTimeLow)
+                          : `${formatCurrency(year.oneTimeLow)} - ${formatCurrency(
+                              year.oneTimeHigh
+                            )}`}
                       </td>
                       <td className="py-3 px-4 text-right text-gray-600">
-                        {formatCurrency(year.recurring)}
+                        {formatCurrency(year.recurringAnnual)}
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-gray-900">
-                        {formatCurrency(
-                          year.oneTime + year.recurring
-                        )}
+                        {year.oneTimeLow === year.oneTimeHigh
+                          ? formatCurrency(
+                              year.oneTimeLow + year.recurringAnnual
+                            )
+                          : `${formatCurrency(
+                              year.oneTimeLow + year.recurringAnnual
+                            )} - ${formatCurrency(
+                              year.oneTimeHigh + year.recurringAnnual
+                            )}`}
                       </td>
                       <td className="py-3 px-4 text-right font-bold text-blue-600">
                         {formatCurrency(year.cumulative)}
@@ -265,8 +314,8 @@ export default async function PortfolioAnalyticsPage() {
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
               <p>
                 <strong>Forecast Note:</strong> Based on current regulations
-                and estimates. Includes {forecast.inflationRate * 100}% annual
-                inflation. Risks identified will be monitored.
+                and estimates. Includes 2% annual inflation. Risks identified
+                will be monitored.
               </p>
             </div>
           </div>

@@ -191,6 +191,22 @@ export interface CostEstimateRequest {
 }
 
 /**
+ * Phase 1: Sensitivity Analysis
+ * Analyzes impact of parameter changes on cost estimate
+ */
+export interface SensitivityAnalysis {
+  baselineOneTime: number;
+  baselineRecurring: number;
+  factors: Array<{
+    factor: 'sizeMultiplier' | 'industryMultiplier' | 'geoMultiplier' | 'techMaturity';
+    currentValue: number;
+    impactOnOneTime: { low: number; high: number; percentChange: number }[];
+    impactOnRecurring: { low: number; high: number; percentChange: number }[];
+    recommendation?: string;
+  }>;
+}
+
+/**
  * Actual cost feedback for learning
  */
 export interface CostFeedback {
@@ -240,4 +256,44 @@ export interface PortfolioInsight {
   }>;
   budgetingRecommendation?: string;
   prioritizedNextSteps: string[];
+}
+
+/**
+ * Phase 1: Portfolio Trend Analysis
+ */
+export interface PortfolioTrend {
+  totalOneTimeLow: number;
+  totalOneTimeHigh: number;
+  totalRecurringAnnual: number;
+  estimateCount: number;
+  averageConfidence: number;
+  threeYearExposureLow: number;
+  threeYearExposureHigh: number;
+  costsByDepartment: Record<string, { oneTime: number; recurring: number }>;
+  costsByRisk: Record<'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH', number>;
+  topDrivers: Array<{
+    description: string;
+    category: string;
+    totalCost: number;
+    confidence: number;
+  }>;
+}
+
+/**
+ * Phase 1: Portfolio Forecast
+ */
+export interface PortfolioForecast {
+  currentYear: {
+    oneTimeLow: number;
+    oneTimeHigh: number;
+    recurringAnnual: number;
+  };
+  projections: Array<{
+    year: number;
+    oneTimeLow: number;
+    oneTimeHigh: number;
+    recurringAnnual: number;
+    cumulative: number;
+  }>;
+  riskFactors: string[];
 }

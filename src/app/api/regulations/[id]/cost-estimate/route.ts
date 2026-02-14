@@ -160,9 +160,30 @@ export async function POST(
       orderBy: { createdAt: 'desc' },
     });
 
-    // Apply learning feedback if available (mocked variance for now)
-    // In production, this would use actual variance from feedback records
-    const historicalVariances = []; // TODO: Fetch from feedback table
+    // Derive variances using historical estimate midpoints as proxy data
+    const baseOneTimeMid =
+      (baseCost.oneTimeCostLow + baseCost.oneTimeCostHigh) / 2;
+    const historicalVariances = historicalEstimates
+      .map((estimate) => {
+        const actualMid = (estimate.oneTimeCostLow + estimate.oneTimeCostHigh) / 2;
+        if (!Number.isFinite(actualMid) || baseOneTimeMid === 0) {
+          return null;
+        }
+        const variance = (actualMid - baseOneTimeMid) / baseOneTimeMid;
+        return {
+          estimated: baseOneTimeMid,
+          actual: actualMid,
+          variance,
+        };
+      })
+      .filter(
+        (variance): variance is {
+          estimated: number;
+          actual: number;
+          variance: number;
+        } => Boolean(variance)
+      );
+
     let adjustedCost = { ...baseCost };
     if (historicalVariances.length > 0) {
       adjustedCost = {

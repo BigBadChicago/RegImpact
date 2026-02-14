@@ -60,6 +60,46 @@ export const mockCompanyProfiles: Record<string, CompanyProfile> = {
     techMaturity: TechMaturity.MEDIUM,
     riskAppetite: RiskLevel.HIGH,
   },
+  microOrg: {
+    industry: Industry.TECHNOLOGY,
+    employeeCount: 5,
+    revenue: 500_000,
+    geographicComplexity: 1,
+    techMaturity: TechMaturity.LOW,
+    riskAppetite: RiskLevel.MEDIUM,
+  },
+  megaEnterprise: {
+    industry: Industry.FINANCE,
+    employeeCount: 15000,
+    revenue: 5_000_000_000,
+    geographicComplexity: 50,
+    techMaturity: TechMaturity.HIGH,
+    riskAppetite: RiskLevel.LOW,
+  },
+  singleJurisdictionLowTech: {
+    industry: Industry.MANUFACTURING,
+    employeeCount: 300,
+    revenue: 60_000_000,
+    geographicComplexity: 1,
+    techMaturity: TechMaturity.LOW,
+    riskAppetite: RiskLevel.MEDIUM,
+  },
+  singleJurisdictionMediumTech: {
+    industry: Industry.MANUFACTURING,
+    employeeCount: 300,
+    revenue: 60_000_000,
+    geographicComplexity: 1,
+    techMaturity: TechMaturity.MEDIUM,
+    riskAppetite: RiskLevel.MEDIUM,
+  },
+  singleJurisdictionHighTech: {
+    industry: Industry.MANUFACTURING,
+    employeeCount: 300,
+    revenue: 60_000_000,
+    geographicComplexity: 1,
+    techMaturity: TechMaturity.HIGH,
+    riskAppetite: RiskLevel.MEDIUM,
+  },
 };
 
 /**
@@ -273,6 +313,21 @@ export const mockScenarioAnalysis: ScenarioAnalysis = {
     ],
   },
   recommended: 'standard',
+};
+
+export const mockScenarioAnalysisMinimalRecommended: ScenarioAnalysis = {
+  ...mockScenarioAnalysis,
+  recommended: 'minimal',
+};
+
+export const mockScenarioAnalysisBestInClassRecommended: ScenarioAnalysis = {
+  ...mockScenarioAnalysis,
+  recommended: 'bestInClass',
+};
+
+export const mockScenarioAnalysisDelayRecommended: ScenarioAnalysis = {
+  ...mockScenarioAnalysis,
+  recommended: 'delay90Days',
 };
 
 /**
