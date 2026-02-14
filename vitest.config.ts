@@ -1,5 +1,8 @@
 import { defineConfig } from 'vitest/config'
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   test: {
@@ -35,7 +38,6 @@ export default defineConfig({
       //   statements: 80,
       // },
     },
-    threads: true,
     testTimeout: 30000,
     include: ['tests/**/*.test.{ts,tsx}', 'tests/**/*.spec.{ts,tsx}'],
   },
