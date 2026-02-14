@@ -31,96 +31,80 @@ export default async function DashboardPage() {
   const policyDiffCount = await prisma.policyDiff.count();
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen app-shell text-[var(--ui-ink)]">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Executive Dashboard
-          </h1>
-          <p className="text-gray-600 mt-1">
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-white/70" />
+        <div className="relative max-w-7xl mx-auto px-6 py-10">
+          <p className="text-xs uppercase tracking-[0.4em] text-muted">Executive Dashboard</p>
+          <h1 className="mt-4 text-4xl font-display">
             Welcome back, {user.name || user.email}
+          </h1>
+          <p className="text-muted mt-2">
+            Monitoring {user.customer.companyName} on the {user.customer.subscriptionTier} plan.
           </p>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-10 flex flex-col gap-10">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white shadow-md rounded-lg p-6">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">
-              Total Regulations
-            </h3>
-            <p className="text-3xl font-bold text-gray-900">
-              {regulationCount}
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="app-card-strong p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted">Total Regulations</p>
+            <p className="mt-4 text-3xl font-display">{regulationCount}</p>
           </div>
 
-          <div className="bg-white shadow-md rounded-lg p-6">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">
-              Policy Changes Analyzed
-            </h3>
-            <p className="text-3xl font-bold text-gray-900">
-              {policyDiffCount}
-            </p>
+          <div className="app-card-strong p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted">Policy Changes Analyzed</p>
+            <p className="mt-4 text-3xl font-display">{policyDiffCount}</p>
           </div>
 
-          <div className="bg-white shadow-md rounded-lg p-6">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">
-              Company
-            </h3>
-            <p className="text-xl font-semibold text-gray-900">
-              {user.customer.companyName}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">
-              {user.customer.subscriptionTier} Plan
-            </p>
+          <div className="app-card-strong p-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted">Company</p>
+            <p className="mt-4 text-2xl font-display">{user.customer.companyName}</p>
+            <p className="text-sm text-muted mt-2">{user.customer.subscriptionTier} Plan</p>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="app-card-strong p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-display">Quick Actions</h2>
+            <span className="text-xs uppercase tracking-[0.3em] text-muted">Jump in</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
             <Link
               href="/dashboard/regulations"
-              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className="app-card p-5 transition-transform hover:-translate-y-1"
             >
-              <h3 className="font-semibold text-gray-900 mb-2">
-                📋 View Regulations
-              </h3>
-              <p className="text-sm text-gray-600">
-                Browse and compare regulation versions
+              <h3 className="font-display text-lg">Regulations</h3>
+              <p className="text-sm text-muted mt-2">
+                Browse and compare regulation versions.
               </p>
             </Link>
 
-            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60">
-              <h3 className="font-semibold text-gray-900 mb-2">
-                📅 Upcoming Deadlines
-              </h3>
-              <p className="text-sm text-gray-600">
-                Coming soon - Track compliance deadlines
+            <Link
+              href="/dashboard/deadlines"
+              className="app-card p-5 transition-transform hover:-translate-y-1"
+            >
+              <h3 className="font-display text-lg">Deadlines</h3>
+              <p className="text-sm text-muted mt-2">
+                Track upcoming compliance obligations.
+              </p>
+            </Link>
+
+            <div className="app-card p-5 opacity-70">
+              <h3 className="font-display text-lg">Cost Estimates</h3>
+              <p className="text-sm text-muted mt-2">
+                Coming soon - View compliance cost projections.
               </p>
             </div>
 
-            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60">
-              <h3 className="font-semibold text-gray-900 mb-2">
-                💰 Cost Estimates
-              </h3>
-              <p className="text-sm text-gray-600">
-                Coming soon - View compliance cost projections
-              </p>
-            </div>
-
-            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed opacity-60">
-              <h3 className="font-semibold text-gray-900 mb-2">
-                ⚙️ Settings
-              </h3>
-              <p className="text-sm text-gray-600">
-                Coming soon - Configure monitoring preferences
+            <div className="app-card p-5 opacity-70">
+              <h3 className="font-display text-lg">Settings</h3>
+              <p className="text-sm text-muted mt-2">
+                Coming soon - Configure monitoring preferences.
               </p>
             </div>
           </div>

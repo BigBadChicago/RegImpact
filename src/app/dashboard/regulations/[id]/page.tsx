@@ -52,43 +52,43 @@ export default async function RegulationDetailPage(
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen app-shell text-[var(--ui-ink)]">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4">
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-white/70" />
+        <div className="relative max-w-6xl mx-auto px-6 py-8">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <Link href="/dashboard" className="hover:text-blue-600">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted mb-4">
+            <Link href="/dashboard" className="hover:text-[var(--ui-accent-3)]">
               Dashboard
             </Link>
             <span>/</span>
-            <Link href="/dashboard/regulations" className="hover:text-blue-600">
+            <Link href="/dashboard/regulations" className="hover:text-[var(--ui-accent-3)]">
               Regulations
             </Link>
             <span>/</span>
-            <span className="text-gray-900 font-medium">{regulation.title}</span>
+            <span className="text-[var(--ui-ink)]">{regulation.title}</span>
           </div>
 
           {/* Regulation Title and Metadata */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {regulation.title}
-          </h1>
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+          <h1 className="text-4xl font-display mb-3">{regulation.title}</h1>
+          <div className="flex flex-wrap gap-4 text-sm text-muted">
             <div>
-              <span className="font-medium">Jurisdiction:</span>{' '}
+              <span className="font-semibold text-[var(--ui-ink)]">Jurisdiction:</span>{' '}
               {regulation.jurisdiction?.name}
             </div>
             <div>
-              <span className="font-medium">Type:</span> {regulation.regulationType}
+              <span className="font-semibold text-[var(--ui-ink)]">Type:</span>{' '}
+              {regulation.regulationType}
             </div>
             {regulation.effectiveDate && (
               <div>
-                <span className="font-medium">Effective Date:</span>{' '}
+                <span className="font-semibold text-[var(--ui-ink)]">Effective Date:</span>{' '}
                 {formatDate(regulation.effectiveDate)}
               </div>
             )}
             <div>
-              <span className="font-medium">Versions:</span>{' '}
+              <span className="font-semibold text-[var(--ui-ink)]">Versions:</span>{' '}
               {regulation.versions.length}
             </div>
           </div>
@@ -96,21 +96,18 @@ export default async function RegulationDetailPage(
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-6 py-10">
         {regulation.versions.length < 2 ? (
-          <div className="bg-white shadow-md rounded-lg p-6 text-center">
-            <p className="text-gray-600 mb-4">
-              You need at least 2 versions to compare
+          <div className="app-card p-8 text-center">
+            <p className="text-muted mb-4">
+              You need at least 2 versions to compare.
             </p>
-            <p className="text-gray-500 text-sm">
+            <p className="text-sm text-muted">
               Current versions available: {regulation.versions.length}
             </p>
           </div>
         ) : (
-          <DiffComparison
-            regulationId={id}
-            versions={regulation.versions}
-          />
+          <DiffComparison regulationId={id} versions={regulation.versions} />
         )}
       </main>
     </div>

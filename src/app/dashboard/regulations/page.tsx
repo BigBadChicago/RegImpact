@@ -37,20 +37,22 @@ export default async function RegulationsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen app-shell text-[var(--ui-ink)]">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-white/70" />
+        <div className="relative max-w-6xl mx-auto px-6 py-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Regulations</h1>
-            <p className="text-gray-600 text-sm mt-1">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted">Regulations</p>
+            <h1 className="text-3xl font-display mt-3">Regulation Library</h1>
+            <p className="text-muted text-sm mt-2">
               Monitoring {regulations.length} regulation
               {regulations.length !== 1 ? 's' : ''}
             </p>
           </div>
           <Link
             href="/dashboard/regulations/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+            className="rounded-full bg-[var(--ui-accent-3)] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
           >
             Add Regulation
           </Link>
@@ -58,79 +60,59 @@ export default async function RegulationsPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-6 py-10">
         {regulations.length === 0 ? (
-          <div className="bg-white shadow-md rounded-lg p-12 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              No regulations found
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Start monitoring regulations by adding a jurisdiction
+          <div className="app-card p-12 text-center">
+            <h2 className="text-xl font-display mb-2">No regulations found</h2>
+            <p className="text-muted mb-6">
+              Start monitoring regulations by adding a jurisdiction.
             </p>
             <Link
               href="/dashboard"
-              className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+              className="inline-block rounded-full bg-[var(--ui-accent)] px-5 py-2 text-sm font-semibold text-white"
             >
               Go to Dashboard
             </Link>
           </div>
         ) : (
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Title
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Jurisdiction
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Effective Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Versions
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Action
-                  </th>
+          <div className="app-card-strong overflow-hidden">
+            <table className="w-full border-separate border-spacing-0">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-[0.3em] text-muted">
+                  <th className="px-6 py-4 font-semibold">Title</th>
+                  <th className="px-6 py-4 font-semibold">Jurisdiction</th>
+                  <th className="px-6 py-4 font-semibold">Type</th>
+                  <th className="px-6 py-4 font-semibold">Effective Date</th>
+                  <th className="px-6 py-4 font-semibold">Versions</th>
+                  <th className="px-6 py-4 font-semibold">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {regulations.map((regulation) => (
                   <tr
                     key={regulation.id}
-                    className="hover:bg-gray-50 transition-colors"
+                    className="border-t border-[var(--ui-border)] hover:bg-white/70 transition-colors"
                   >
                     <td className="px-6 py-4">
                       <Link
                         href={`/dashboard/regulations/${regulation.id}`}
-                        className="text-blue-600 font-medium hover:underline"
+                        className="text-[var(--ui-accent-3)] font-semibold hover:underline"
                       >
                         {regulation.title}
                       </Link>
                     </td>
-                    <td className="px-6 py-4 text-gray-900">
-                      {regulation.jurisdiction?.name || 'Unknown'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-900">
-                      {regulation.regulationType}
-                    </td>
-                    <td className="px-6 py-4 text-gray-900">
+                    <td className="px-6 py-4">{regulation.jurisdiction?.name || 'Unknown'}</td>
+                    <td className="px-6 py-4">{regulation.regulationType}</td>
+                    <td className="px-6 py-4">
                       {regulation.effectiveDate
                         ? formatDate(new Date(regulation.effectiveDate))
                         : '-'}
                     </td>
-                    <td className="px-6 py-4 text-gray-900 font-semibold">
-                      {regulation.versions.length}
-                    </td>
+                    <td className="px-6 py-4 font-semibold">{regulation.versions.length}</td>
                     <td className="px-6 py-4">
                       <Link
                         href={`/dashboard/regulations/${regulation.id}`}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-[var(--ui-accent-3)] font-semibold hover:underline"
                       >
                         View
                       </Link>

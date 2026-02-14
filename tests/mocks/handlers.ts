@@ -12,7 +12,83 @@ import { http, HttpResponse } from 'msw'
  */
 const openAIHandler = http.post(
   'https://api.openai.com/v1/chat/completions',
-  () => {
+  async ({ request }) => {
+    const body = await request.json() as any
+    const userMessage = body.messages?.find((m: any) => m.role === 'user')?.content || ''
+    
+    // Check if this is a deadline extraction request
+    const isDeadlineRequest = userMessage.includes('Extract all compliance deadlines')
+    
+    if (isDeadlineRequest) {
+      // Extract the regulation content from the user message
+      // The format is: "Extract all compliance deadlines...\n\nRegulation text:\n<content>"
+      const regulationText = userMessage.split('Regulation text:')[1]?.trim() || ''
+      const textToScan = regulationText || userMessage
+      
+      // Check if the regulation text actually contains dates
+      const hasDatePatterns = /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}|(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}|Q[1-4] \d{4}|within \d+ days|end of Q[1-4]/i.test(textToScan)
+      
+      if (!hasDatePatterns) {
+        // No dates found - return empty array
+        return HttpResponse.json({
+          id: 'chatcmpl-mock-no-deadlines',
+          object: 'chat.completion',
+          created: Math.floor(Date.now() / 1000),
+          model: 'gpt-3.5-turbo',
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: 'assistant',
+                content: JSON.stringify([]),
+              },
+              finish_reason: 'stop',
+            },
+          ],
+          usage: { prompt_tokens: 50, completion_tokens: 2, total_tokens: 52 },
+        })
+      }
+      
+      // Has dates - return mock deadline extractions
+      return HttpResponse.json({
+        id: 'chatcmpl-deadline-test',
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: 'gpt-3.5-turbo',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: JSON.stringify([
+                {
+                  deadlineDate: '2026-03-15',
+                  deadlineType: 'submission',
+                  description: 'Initial compliance filing required',
+                  riskLevel: 'CRITICAL',
+                  confidence: 0.9,
+                },
+                {
+                  deadlineDate: '2026-06-30',
+                  deadlineType: 'reporting',
+                  description: 'Quarterly report due',
+                  riskLevel: 'IMPORTANT',
+                  confidence: 0.85,
+                },
+              ]),
+            },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: {
+          prompt_tokens: 400,
+          completion_tokens: 150,
+          total_tokens: 550,
+        },
+      })
+    }
+    
+    // Default PolicyDiff response
     return HttpResponse.json({
       id: 'chatcmpl-test-123',
       object: 'chat.completion',
