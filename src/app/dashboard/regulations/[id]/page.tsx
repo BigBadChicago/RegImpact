@@ -3,8 +3,8 @@
  * Shows a single regulation with version history and diff viewer
  */
 
-import { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth.config';
 import DiffComparison from '@/components/regulations/DiffComparison';
@@ -58,13 +58,13 @@ export default async function RegulationDetailPage(
         <div className="max-w-6xl mx-auto px-4 py-4">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <a href="/dashboard" className="hover:text-blue-600">
+            <Link href="/dashboard" className="hover:text-blue-600">
               Dashboard
-            </a>
+            </Link>
             <span>/</span>
-            <a href="/dashboard/regulations" className="hover:text-blue-600">
+            <Link href="/dashboard/regulations" className="hover:text-blue-600">
               Regulations
-            </a>
+            </Link>
             <span>/</span>
             <span className="text-gray-900 font-medium">{regulation.title}</span>
           </div>

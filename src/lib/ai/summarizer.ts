@@ -129,7 +129,7 @@ Respond ONLY with valid JSON, no other text.`,
     console.log(`[AI Response] Tokens used: ${response.usage?.total_tokens}`);
 
     // Parse JSON response with error handling
-    let parsed: any;
+    let parsed: { summary?: string; keyChanges?: string[]; obligations?: string[]; confidence?: number };
     try {
       // Strip markdown code blocks and trim whitespace
       let jsonContent = content.trim();
