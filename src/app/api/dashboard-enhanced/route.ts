@@ -49,11 +49,17 @@ export async function GET() {
     const oneYearFromNow = new Date()
     oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
 
+    // Get regulation version IDs that the customer is tracking
+    const customerRegulationVersionIds = costEstimates.map(ce => ce.regulationVersionId)
+
     const deadlines = await prisma.deadline.findMany({
       where: {
         deadlineDate: { 
           gte: new Date(), 
           lte: oneYearFromNow
+        },
+        regulationVersionId: {
+          in: customerRegulationVersionIds  // Tenant isolation
         }
       },
       include: {
@@ -79,7 +85,7 @@ export async function GET() {
       .map(d => ({
         id: d.regulationVersion.regulationId,
         title: d.regulationVersion.regulation.title,
-        deadline: d.deadlineDate,
+        deadline: d.deadlineDate.toISOString(),  // Convert to ISO string for JSON serialization
         cost: d.regulationVersion.costEstimates[0]?.oneTimeCostHigh || 0,
         riskLevel: d.riskLevel || 'ROUTINE',
         department: 'Legal',  // Derive from cost estimate department breakdown when available

@@ -20,7 +20,12 @@ export default function HealthScoreGauge({ healthScore, onClick }: Props) {
   ]
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition-shadow" onClick={onClick}>
+    <div 
+      className={`bg-white rounded-lg shadow p-6 transition-shadow ${
+        onClick ? 'cursor-pointer hover:shadow-lg' : ''
+      }`}
+      onClick={onClick}
+    >
       <h3 className="text-sm font-medium text-gray-700 mb-4">Compliance Health Score</h3>
       
       {/* Circular Gauge */}

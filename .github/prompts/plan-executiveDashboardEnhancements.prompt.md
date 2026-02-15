@@ -1101,7 +1101,7 @@ model Jurisdiction {
 | **Total (12 months)** | **150** | **790** | **105** | **200** | **1,245** | **39** |
 
 **Assumptions:**
-- 1 full-time developer (40 hrs/week = 520 hrs/year)
+- 1 part-time developer (~15 hrs/week = 790 hrs/year)
 - 1 contractor designer (~10 hrs/week = 520 hrs/year)
 - Realistic capacity: ~790 dev hrs available in 12 months
 - Contingency: 16% buffer for unknowns, debugging, testing refinement
@@ -1554,7 +1554,7 @@ Phase delivery is considered successful when:
 
 ---
 
-## APPENDIX: REFERENCES & INSPIR ATIONS
+## APPENDIX: REFERENCES & INSPIRATIONS
 
 **Design Inspiration:**
 - Bloomberg Terminal (data density, executive focus)

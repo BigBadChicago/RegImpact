@@ -1,58 +1,88 @@
 import { prisma } from '@/lib/prisma'
 import { ComplianceHealthScore } from '@/types/dashboard-enhanced'
 
+// Pure helper functions for testability
+function computeDeadlineAdherence(deadlines: Array<{
+  notificationSent: boolean
+  deadlineDate: Date | string
+}>): number {
+  const total = deadlines.length
+  const met = deadlines.filter(
+    d => d.notificationSent && new Date(d.deadlineDate) > new Date()
+  ).length
+  return total > 0 ? (met / total) * 100 : 100
+}
+
+function computeCostPredictability(costEstimates: Array<{
+  oneTimeCostLow: number
+  oneTimeCostHigh: number
+}>): number {
+  if (costEstimates.length === 0) return 80 // Default score
+  const avgVariance = costEstimates.reduce((sum, est) => {
+    const variance = (est.oneTimeCostHigh - est.oneTimeCostLow) / est.oneTimeCostHigh
+    return sum + Math.abs(variance)
+  }, 0) / costEstimates.length
+  return Math.max(0, 100 - avgVariance * 100)
+}
+
+function computeRiskExposureInverse(costEstimates: Array<{
+  oneTimeCostHigh: number
+  recurringCostAnnual: number
+}>): number {
+  const totalExposure = costEstimates.reduce(
+    (sum, e) => sum + e.oneTimeCostHigh + e.recurringCostAnnual,
+    0
+  )
+  return Math.max(0, 100 - Math.min(100, totalExposure / 10000)) // $1M = 0 score
+}
+
+function combineComplianceScore(components: {
+  deadlineAdherence: number
+  costPredictability: number
+  riskExposureInverse: number
+}): number {
+  return Math.round(
+    components.deadlineAdherence * 0.4 +
+      components.costPredictability * 0.4 +
+      components.riskExposureInverse * 0.2
+  )
+}
+
 export async function calculateComplianceHealthScore(customerId: string): Promise<ComplianceHealthScore> {
-  // Fetch data
+  // Fetch customer's cost estimates first to get their regulation versions
+  const costEstimates = await prisma.costEstimate.findMany({
+    where: { customerId },
+    select: { regulationVersionId: true, oneTimeCostLow: true, oneTimeCostHigh: true, recurringCostAnnual: true }
+  })
+
+  const regulationVersionIds = [...new Set(costEstimates.map(ce => ce.regulationVersionId))]
+
+  // Fetch only deadlines for regulations the customer is tracking (tenant isolation)
   const deadlines = await prisma.deadline.findMany({
     where: {
+      regulationVersionId: { in: regulationVersionIds },
       regulationVersion: {
         regulation: {
           status: 'ACTIVE'
         }
       }
     },
-    include: {
-      regulationVersion: {
-        include: {
-          regulation: true
-        }
-      }
+    select: {
+      notificationSent: true,
+      deadlineDate: true
     }
   })
-  
-  const costEstimates = await prisma.costEstimate.findMany({
-    where: { customerId }
+
+  // Calculate metrics using pure functions
+  const deadlineAdherence = computeDeadlineAdherence(deadlines)
+  const costPredictability = computeCostPredictability(costEstimates)
+  const riskExposureInverse = computeRiskExposureInverse(costEstimates)
+
+  const score = combineComplianceScore({
+    deadlineAdherence,
+    costPredictability,
+    riskExposureInverse
   })
-
-  // 1. Deadline Adherence (40% weight)
-  // Logic: (met deadlines / total deadlines) × 100
-  const totalDeadlines = deadlines.length
-  const metDeadlines = deadlines.filter(d => d.notificationSent && new Date(d.deadlineDate) > new Date()).length
-  const deadlineAdherence = totalDeadlines > 0 ? (metDeadlines / totalDeadlines) * 100 : 100
-
-  // 2. Cost Predictability (40% weight)
-  // Logic: Calculated based on variance between low and high estimates
-  // Higher score = more predictable (smaller range)
-  let costPredictability = 80  // Default score
-  if (costEstimates.length > 0) {
-    const avgVariance = costEstimates.reduce((sum, est) => {
-      const variance = (est.oneTimeCostHigh - est.oneTimeCostLow) / est.oneTimeCostHigh
-      return sum + Math.abs(variance)
-    }, 0) / costEstimates.length
-    costPredictability = Math.max(0, 100 - (avgVariance * 100))
-  }
-
-  // 3. Risk Exposure Inverse (20% weight)
-  // Logic: Lower exposure = higher score
-  const totalExposure = costEstimates.reduce((sum, e) => sum + e.oneTimeCostHigh + e.recurringCostAnnual, 0)
-  const riskExposureInverse = Math.max(0, 100 - Math.min(100, totalExposure / 10000))  // $1M = 0 score
-
-  // Combined score: weighted average
-  const score = Math.round(
-    deadlineAdherence * 0.4 +
-    costPredictability * 0.4 +
-    riskExposureInverse * 0.2
-  )
 
   // 3-month trend (mock for now, implement with historical data)
   const trend = [
@@ -65,6 +95,6 @@ export async function calculateComplianceHealthScore(customerId: string): Promis
     score,
     components: { deadlineAdherence, costPredictability, riskExposureInverse },
     trend,
-    industryBenchmark: 75  // Mock benchmark
+    industryBenchmark: 75 // Mock benchmark
   }
 }

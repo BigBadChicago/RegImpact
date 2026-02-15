@@ -19,7 +19,7 @@ export interface CostWaterfallData {
 export interface TimelineRegulation {
   id: string
   title: string
-  deadline: Date
+  deadline: string  // ISO date string from API
   cost: number
   riskLevel: 'CRITICAL' | 'IMPORTANT' | 'ROUTINE'
   department: string

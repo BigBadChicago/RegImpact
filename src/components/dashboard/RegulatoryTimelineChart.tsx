@@ -38,16 +38,6 @@ export default function RegulatoryTimelineChart({ regulations, onRegulationClick
     return '#10B981'  // Green
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-      notation: 'compact'
-    }).format(value)
-  }
-
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-sm font-medium text-gray-700 mb-4">Regulatory Timeline (Next 12 Months)</h3>
@@ -55,23 +45,12 @@ export default function RegulatoryTimelineChart({ regulations, onRegulationClick
         <ComposedChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="month" angle={-45} textAnchor="end" height={80} fontSize={12} />
-          <YAxis yAxisId="left" label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
-          <YAxis 
-            yAxisId="right" 
-            orientation="right" 
-            tickFormatter={formatCurrency}
-            label={{ value: 'Cost', angle: 90, position: 'insideRight' }} 
-          />
+          <YAxis label={{ value: 'Regulation Count', angle: -90, position: 'insideLeft' }} />
           <Tooltip 
-            formatter={(value: number, name: string) => {
-              if (name === 'totalCost') return formatCurrency(value)
-              return value
-            }}
             labelFormatter={(label) => `Month: ${label}`}
           />
           <Legend />
           <Bar
-            yAxisId="left"
             dataKey="count"
             name="Regulation Count"
             onClick={(data: { regulations?: TimelineRegulation[] }) => data.regulations?.[0] && onRegulationClick?.(data.regulations[0].id)}
