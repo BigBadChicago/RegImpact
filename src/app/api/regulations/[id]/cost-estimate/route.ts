@@ -106,12 +106,6 @@ export async function POST(
           include: { jurisdiction: true },
         },
       },
-      select: {
-        fullText: true,
-        regulation: {
-          include: { jurisdiction: true }
-        }
-      }
     });
 
     if (!regulationVersion) {
@@ -140,7 +134,7 @@ export async function POST(
 
     // Extract cost drivers (AI or deterministic)
     const costDrivers = await extractCostDrivers(
-      regulationVersion.fullText,
+      regulationVersion.contentText,
       regulationVersion.regulation.title
     );
 

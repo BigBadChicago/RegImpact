@@ -1,14 +1,12 @@
 import type {
-  JurisdictionModel,
-  RegulationModel,
-  RegulationVersionModel,
-  PolicyDiffModel,
-} from '../../generated/prisma/models'
-import type {
+  Jurisdiction,
+  Regulation,
+  RegulationVersion,
+  PolicyDiff,
   PolicyDiffSignificance,
   JurisdictionType,
   RegulationStatus,
-} from '../../generated/prisma/enums'
+} from '../../generated/prisma/client'
 
 /**
  * Mock test data for regulations, versions, and comparisons
@@ -18,7 +16,7 @@ import type {
 /**
  * Mock California jurisdiction
  */
-export const mockJurisdiction: JurisdictionModel = {
+export const mockJurisdiction: Jurisdiction = {
   id: 'jurisdiction-ca',
   code: 'CA',
   name: 'California',
@@ -28,7 +26,7 @@ export const mockJurisdiction: JurisdictionModel = {
 /**
  * Mock Paid Sick Leave regulation
  */
-export const mockRegulation: RegulationModel & { versions?: RegulationVersionModel[] } =
+export const mockRegulation: Regulation & { versions?: RegulationVersion[] } =
   {
     id: 'regulation-psl-ca',
     jurisdictionId: mockJurisdiction.id,
@@ -46,7 +44,7 @@ export const mockRegulation: RegulationModel & { versions?: RegulationVersionMod
  * Version 1: Original 3 days requirement
  * Version 2: Updated 5 days requirement with accrual formula
  */
-export const mockRegulationVersions: RegulationVersionModel[] = [
+export const mockRegulationVersions: RegulationVersion[] = [
   {
     id: 'version-psl-ca-1',
     regulationId: mockRegulation.id,
@@ -74,7 +72,7 @@ export const mockRegulationVersions: RegulationVersionModel[] = [
 /**
  * Mock PolicyDiff comparing versions 1 and 2
  */
-export const mockPolicyDiff: PolicyDiffModel = {
+export const mockPolicyDiff: PolicyDiff = {
   id: 'diff-psl-ca-1-2',
   regulationVersionId: mockRegulationVersions[1].id,
   previousVersionId: mockRegulationVersions[0].id,
@@ -173,7 +171,7 @@ export function createMockRegulation(
  * const version = createMockVersion({ versionNumber: 3 })
  */
 export function createMockVersion(
-  overrides?: Partial<RegulationVersionModel>
+  overrides?: Partial<RegulationVersion>
 ) {
   return {
     ...mockRegulationVersions[0],

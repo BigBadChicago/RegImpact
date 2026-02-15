@@ -11,7 +11,7 @@ interface Props {
 
 type TimeRange = '3m' | '6m' | '1y' | 'all'
 
-interface TimelineData extends TimelineEvent {
+interface TimelineData extends Omit<TimelineEvent, 'date'> {
   date: string // formatted date
   count: number // running count of regulations
 }
@@ -93,9 +93,9 @@ export default function RegulatoryTimeline({ events }: Props) {
   const timelineData: TimelineData[] = useMemo(
     () =>
       filteredEvents.map((event, index) => ({
+        ...event,
         date: new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         count: index + 1, // same as slice(0, index + 1).length
-        ...event
       })),
     [filteredEvents]
   )
@@ -153,9 +153,9 @@ export default function RegulatoryTimeline({ events }: Props) {
               {/* Scatter points for each regulation status */}
               <Scatter
                 data={timelineData}
-                shape={(props) => {
+                shape={(props: any) => {
                   const { payload, cx, cy } = props
-                  const color = getStatusColor(payload.status)
+                  const color = getStatusColor(payload?.status || 'upcoming')
                   return <circle cx={cx} cy={cy} r={4} fill={color} />
                 }}
               />

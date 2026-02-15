@@ -77,7 +77,7 @@ export function mockPrismaClient() {
  * @param timeout - Maximum time to wait (default 3000ms)
  */
 export async function waitForLoadingToFinish(timeout = 3000) {
-  const { waitFor } = await import('@testing-library/react')
+  const { waitFor } = await import('@testing-library/dom')
   return waitFor(
     () => {
       const loadingElements = document.querySelectorAll(
@@ -144,7 +144,7 @@ export function setupMockRouter(pathname = '/') {
  * Useful for async operations and API calls
  */
 export async function waitForElement(selector: string, timeout = 3000) {
-  const { waitFor } = await import('@testing-library/react')
+  const { waitFor } = await import('@testing-library/dom')
   return waitFor(
     () => {
       const element = document.querySelector(selector)

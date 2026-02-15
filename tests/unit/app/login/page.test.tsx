@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { screen, waitFor } from '@testing-library/dom'
 import LoginPage from '@/app/login/page'
 
 const mockSignIn = vi.fn()

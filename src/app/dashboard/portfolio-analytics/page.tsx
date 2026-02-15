@@ -148,6 +148,13 @@ export default async function PortfolioAnalyticsPage() {
     0
   );
 
+  // Calculate risk counts by category
+  const topRisks = {
+    high: estimates.filter(e => e.confidence <= 0.5).length,
+    medium: estimates.filter(e => e.confidence > 0.5 && e.confidence <= 0.75).length,
+    low: estimates.filter(e => e.confidence > 0.75).length,
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}

@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
       select: {
         oneTimeCostHigh: true,
         recurringCostAnnual: true,
-        createdAt: true
+        createdAt: true,
+        regulationVersionId: true
       }
     })
 
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
     // Get regulation and deadline counts (deduplicated)
     const regulationVersionIds = Array.from(
       new Set(
-        costEstimates.map(e => e.regulationVersionId)
+        costEstimates.map(e => e.regulationVersionId).filter(Boolean)
       )
     )
 
