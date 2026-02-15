@@ -2,32 +2,28 @@ import { prisma } from '@/lib/prisma'
 import { HealthScoreComponents } from '@/types/dashboard'
 
 /**
- * Calculate compliance health score components for a customer
- * Breakdown: Deadline Adherence (40%) + Cost Predictability (40%) + Risk Exposure (20%)
+ * Input data structure for health score calculation
  */
-export async function calculateHealthScore(customerId: string): Promise<HealthScoreComponents> {
-  // Fetch regulations associated with customer through cost estimates
-  const costEstimates = await prisma.costEstimate.findMany({
-    where: { customerId },
-    include: {
-      regulationVersion: {
-        include: {
-          regulation: true,
-          deadline: true
-        }
-      }
-    }
-  })
+type HealthScoreInput = {
+  costEstimates: Array<{
+    oneTimeCostLow: number
+    oneTimeCostHigh: number
+    recurringCostAnnual: number
+  }>
+  deadlines: Array<{
+    deadlineDate: Date | string
+    notificationSent: boolean
+  }>
+}
 
-  const regulationVersionIds = costEstimates.map(ce => ce.regulationVersionId)
+/**
+ * Pure calculation function: computes health score components from raw data
+ * No database access, fully testable
+ */
+export function calculateHealthScoreComponents(input: HealthScoreInput): HealthScoreComponents {
+  const { costEstimates, deadlines } = input
 
   // Deadline adherence: % of deadlines with notifications sent before due date
-  const deadlines = await prisma.deadline.findMany({
-    where: {
-      regulationVersionId: { in: regulationVersionIds }
-    }
-  })
-
   const totalDeadlines = deadlines.length
   const adheredDeadlines = deadlines.filter(d => {
     const dueDate = new Date(d.deadlineDate)
@@ -46,14 +42,13 @@ export async function calculateHealthScore(customerId: string): Promise<HealthSc
   const avgVariance = costVariances.length > 0 ? costVariances.reduce((a, b) => a + b, 0) / costVariances.length : 0
   const costPredictability = Math.max(0, (1 - avgVariance) * 100)
 
-  // Risk exposure: Inverse of high-cost regulation count
-  // Total exposure divided by maximum acceptable exposure ($1M)
+  // Risk exposure: Inverse of total cost exposure
+  // Total exposure divided by maximum acceptable exposure ($5M)
   const totalExposure = costEstimates.reduce(
     (sum, e) => sum + e.oneTimeCostHigh + e.recurringCostAnnual * 3, // 3-year projection
     0
   )
 
-  // Scale: 100 at $0, 0 at $5M+
   const maxExposure = 5000000
   const riskExposure = Math.max(0, 100 - (totalExposure / maxExposure) * 100)
 
@@ -70,6 +65,41 @@ export async function calculateHealthScore(customerId: string): Promise<HealthSc
 }
 
 /**
+ * Calculate compliance health score components for a customer
+ * Fetches data from database and delegates to pure calculation function
+ */
+export async function calculateHealthScore(customerId: string): Promise<HealthScoreComponents> {
+  // Fetch regulations associated with customer through cost estimates
+  const costEstimates = await prisma.costEstimate.findMany({
+    where: { customerId },
+    select: {
+      oneTimeCostLow: true,
+      oneTimeCostHigh: true,
+      recurringCostAnnual: true,
+      regulationVersionId: true
+    }
+  })
+
+  const regulationVersionIds = costEstimates.map(ce => ce.regulationVersionId)
+
+  // Deadline adherence: % of deadlines with notifications sent before due date
+  const deadlines = await prisma.deadline.findMany({
+    where: {
+      regulationVersionId: { in: regulationVersionIds }
+    },
+    select: {
+      deadlineDate: true,
+      notificationSent: true
+    }
+  })
+
+  return calculateHealthScoreComponents({
+    costEstimates,
+    deadlines
+  })
+}
+
+/**
  * Compute final weighted health score from components
  */
 export function computeHealthScore(components: HealthScoreComponents): number {
@@ -83,15 +113,10 @@ export function computeHealthScore(components: HealthScoreComponents): number {
 }
 
 /**
- * Calculate health score trend (3-month historical)
- * Returns array of score trend points
+ * Generate mock health score trend based on current score
+ * To be replaced with real historical data when available
  */
-export async function calculateHealthScoreTrend(customerId: string): Promise<Array<{ month: string; score: number }>> {
-  // TODO: Implement with historical data storage
-  // For now, return mock trend based on current score
-  const components = await calculateHealthScore(customerId)
-  const currentScore = computeHealthScore(components)
-
+export function mockHealthScoreTrend(currentScore: number): Array<{ month: string; score: number }> {
   const baseScore = Math.max(0, currentScore - 5)
 
   return [
@@ -99,4 +124,15 @@ export async function calculateHealthScoreTrend(customerId: string): Promise<Arr
     { month: 'Month -1', score: baseScore },
     { month: 'Current', score: currentScore }
   ]
+}
+
+/**
+ * Calculate health score trend (3-month historical)
+ * Wrapper that calculates current score and calls mockHealthScoreTrend
+ * TODO: Replace with real historical data when available
+ */
+export async function calculateHealthScoreTrend(customerId: string): Promise<Array<{ month: string; score: number }>> {
+  const components = await calculateHealthScore(customerId)
+  const currentScore = computeHealthScore(components)
+  return mockHealthScoreTrend(currentScore)
 }

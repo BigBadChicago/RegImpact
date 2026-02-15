@@ -266,7 +266,7 @@ export default function ExecutiveDashboard() {
                 data.costTrend > 0 ? 'text-red-600' : 'text-green-600'
               }`}
             >
-              {data.costTrend > 0 ? '+' : ''}{data.costTrend.toFixed(1)}% vs last period
+              {data.costTrend > 0 ? '+' : '-'}{Math.abs(data.costTrend).toFixed(1)}% vs last period
             </p>
           </div>
 

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter } from 'recharts'
+import { useMemo, useState } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Scatter } from 'recharts'
+import type { TooltipProps } from 'recharts'
 import { TimelineEvent } from '@/types/dashboard'
 
 interface Props {
@@ -10,12 +11,64 @@ interface Props {
 
 type TimeRange = '3m' | '6m' | '1y' | 'all'
 
+interface TimelineData extends TimelineEvent {
+  date: string // formatted date
+  count: number // running count of regulations
+}
+
+type TimelineTooltipProps = TooltipProps<number, string>
+
+/**
+ * Typed tooltip component for regulatory timeline
+ */
+function RegulatoryTimelineTooltip({ active, payload }: TimelineTooltipProps) {
+  if (!active || !payload || !payload.length) return null
+
+  const data = payload[0].payload as TimelineData
+
+  return (
+    <div className="bg-white p-3 rounded shadow-lg border border-gray-200 max-w-xs">
+      <p className="font-medium text-gray-900 text-sm">{data.regulation?.title || 'Regulation'}</p>
+      <p className="text-xs text-gray-600 mt-1">{data.date}</p>
+      <p className="text-xs text-gray-600">Type: {data.type}</p>
+      <p
+        className={`text-xs font-medium mt-1 ${
+          data.status === 'overdue'
+            ? 'text-red-600'
+            : data.status === 'due-soon'
+              ? 'text-yellow-600'
+              : 'text-green-600'
+        }`}
+      >
+        {data.status.replace('-', ' ').toUpperCase()}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * Get status color for scatter points
+ */
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'upcoming':
+      return '#10b981' // green
+    case 'due-soon':
+      return '#eab308' // yellow
+    case 'overdue':
+      return '#ef4444' // red
+    default:
+      return '#6b7280' // gray
+  }
+}
+
 export default function RegulatoryTimeline({ events }: Props) {
   const [timeRange, setTimeRange] = useState<TimeRange>('1y')
 
-  // Filter events based on time range
-  const getFilteredEvents = () => {
+  // Memoize filtered and sorted events
+  const filteredEvents = useMemo(() => {
     const now = new Date()
+
     const filtered = events.filter((event) => {
       const eventDate = new Date(event.date)
       const monthsDiff = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30)
@@ -28,64 +81,30 @@ export default function RegulatoryTimeline({ events }: Props) {
         case '1y':
           return monthsDiff >= -1 && monthsDiff <= 12
         case 'all':
-          return true
         default:
           return true
       }
     })
 
     return filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  }
+  }, [events, timeRange])
 
-  const filteredEvents = getFilteredEvents()
-
-  // Transform data for timeline visualization
-  const timelineData = filteredEvents.map((event, index) => ({
-    date: new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    count: filteredEvents.slice(0, index + 1).length,
-    ...event
-  }))
-
-  // Get status color
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming':
-        return '#10b981' // green
-      case 'due-soon':
-        return '#eab308' // yellow
-      case 'overdue':
-        return '#ef4444' // red
-      default:
-        return '#6b7280' // gray
-    }
-  }
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload
-      return (
-        <div className="bg-white p-3 rounded shadow-lg border border-gray-200 max-w-xs">
-          <p className="font-medium text-gray-900 text-sm">{data.regulation?.title || 'Regulation'}</p>
-          <p className="text-xs text-gray-600 mt-1">{data.date}</p>
-          <p className="text-xs text-gray-600">Type: {data.type}</p>
-          <p className={`text-xs font-medium mt-1 ${
-            data.status === 'overdue' ? 'text-red-600' :
-            data.status === 'due-soon' ? 'text-yellow-600' :
-            'text-green-600'
-          }`}>
-            {data.status.replace('-', ' ').toUpperCase()}
-          </p>
-        </div>
-      )
-    }
-    return null
-  }
+  // Memoize timeline data transformation
+  const timelineData: TimelineData[] = useMemo(
+    () =>
+      filteredEvents.map((event, index) => ({
+        date: new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count: index + 1, // same as slice(0, index + 1).length
+        ...event
+      })),
+    [filteredEvents]
+  )
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 w-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Regulatory Timeline</h3>
-        
+
         {/* Time Range Selector */}
         <div className="flex gap-2">
           {(['3m', '6m', '1y', 'all'] as TimeRange[]).map((range) => (
@@ -120,7 +139,7 @@ export default function RegulatoryTimeline({ events }: Props) {
                 label={{ value: 'Regulation Count', angle: -90, position: 'insideLeft' }}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<RegulatoryTimelineTooltip />} />
               <Line
                 type="monotone"
                 dataKey="count"
@@ -130,19 +149,16 @@ export default function RegulatoryTimeline({ events }: Props) {
                 isAnimationActive={true}
                 animationDuration={2000}
               />
-              
-              {/* Overlay scatter points for each regulation */}
-              <ScatterChart data={timelineData}>
-                {filteredEvents.map((event, index) => (
-                  <Scatter
-                    key={event.regulation.id}
-                    name={event.regulation.title}
-                    data={[{ date: timelineData[index].date, count: timelineData[index].count }]}
-                    fill={getStatusColor(event.status)}
-                    shape="circle"
-                  />
-                ))}
-              </ScatterChart>
+
+              {/* Scatter points for each regulation status */}
+              <Scatter
+                data={timelineData}
+                shape={(props) => {
+                  const { payload, cx, cy } = props
+                  const color = getStatusColor(payload.status)
+                  return <circle cx={cx} cy={cy} r={4} fill={color} />
+                }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>

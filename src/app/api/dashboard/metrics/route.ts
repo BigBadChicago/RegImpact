@@ -58,13 +58,12 @@ export async function GET(request: NextRequest) {
     const recentEstimates = costEstimates.filter(e => e.createdAt > thirtyDaysAgo)
     const costTrend = costEstimates.length > 0 ? (recentEstimates.length / costEstimates.length) * 5 : 0
 
-    // Get regulation and deadline counts
-    const regulationVersionIds = (
-      await prisma.costEstimate.findMany({
-        where: { customerId },
-        select: { regulationVersionId: true }
-      })
-    ).map(e => e.regulationVersionId)
+    // Get regulation and deadline counts (deduplicated)
+    const regulationVersionIds = Array.from(
+      new Set(
+        costEstimates.map(e => e.regulationVersionId)
+      )
+    )
 
     const regulationCount = await prisma.regulation.count({
       where: {

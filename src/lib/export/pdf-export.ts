@@ -109,7 +109,7 @@ export async function generateDashboardPDF(
     {
       label: 'Upcoming Deadlines',
       value: upcomingDeadlines.toString(),
-      unit: ' days',
+      unit: '',
       trend: 0
     }
   ]
@@ -246,9 +246,15 @@ export async function canvasToPDF(
   fileName: string
 ): Promise<Blob> {
   const doc = new jsPDF({
-    orientation: 'landscape',
+    orientation: 'portrait',
     unit: 'mm',
     format: 'a4'
+  })
+
+  // Use provided title and fileName for PDF metadata
+  doc.setProperties({
+    title,
+    subject: fileName
   })
 
   const pageWidth = doc.internal.pageSize.getWidth()
