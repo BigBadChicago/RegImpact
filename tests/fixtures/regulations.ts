@@ -3,8 +3,6 @@ import type {
   Regulation,
   RegulationVersion,
   PolicyDiff,
-} from '../../generated/prisma/client'
-import type {
   PolicyDiffSignificance,
   JurisdictionType,
   RegulationStatus,
@@ -100,23 +98,24 @@ export const mockDeadlines = [
   {
     id: 'deadline-1',
     regulationVersionId: mockRegulationVersions[1].id,
-    dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    title: 'California Paid Sick Leave: Policy Update Required',
-    description:
-      'Companies must update employee handbooks and post updated policy',
+    deadlineDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    deadlineType: 'Policy Update Required',
+    description: 'Companies must update employee handbooks and post updated policy',
     riskLevel: 'IMPORTANT' as const,
+    extractionConfidence: 0.9,
+    notificationSent: false,
     createdAt: new Date('2025-12-15'),
-    updatedAt: new Date('2025-12-15'),
   },
   {
     id: 'deadline-2',
     regulationVersionId: mockRegulationVersions[1].id,
-    dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-    title: 'System Implementation Complete',
+    deadlineDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+    deadlineType: 'System Implementation Complete',
     description: 'Payroll and HR systems must be updated to reflect new rules',
     riskLevel: 'CRITICAL' as const,
+    extractionConfidence: 0.95,
+    notificationSent: false,
     createdAt: new Date('2025-12-15'),
-    updatedAt: new Date('2025-12-15'),
   },
 ]
 
