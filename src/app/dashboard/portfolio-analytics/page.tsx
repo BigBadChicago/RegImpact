@@ -148,6 +148,13 @@ export default async function PortfolioAnalyticsPage() {
     0
   );
 
+  // Count regulations by risk level (estimate based on cost distribution)
+  const topRisks = {
+    high: Math.ceil(Object.values(estimates).filter((e) => e.oneTimeCostHigh > 50000).length),
+    medium: Math.ceil(Object.values(estimates).filter((e) => e.oneTimeCostHigh <= 50000 && e.oneTimeCostHigh > 10000).length),
+    low: Math.ceil(Object.values(estimates).filter((e) => e.oneTimeCostHigh <= 10000).length),
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}

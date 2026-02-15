@@ -11,9 +11,12 @@ interface Props {
 
 type TimeRange = '3m' | '6m' | '1y' | 'all'
 
-interface TimelineData extends TimelineEvent {
+interface TimelineData {
   date: string // formatted date
   count: number // running count of regulations
+  regulation: TimelineEvent['regulation']
+  type: TimelineEvent['type']
+  status: TimelineEvent['status']
 }
 
 type TimelineTooltipProps = TooltipProps<number, string>
@@ -94,8 +97,10 @@ export default function RegulatoryTimeline({ events }: Props) {
     () =>
       filteredEvents.map((event, index) => ({
         date: new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        count: index + 1, // same as slice(0, index + 1).length
-        ...event
+        count: index + 1,
+        regulation: event.regulation,
+        type: event.type,
+        status: event.status
       })),
     [filteredEvents]
   )
@@ -153,7 +158,7 @@ export default function RegulatoryTimeline({ events }: Props) {
               {/* Scatter points for each regulation status */}
               <Scatter
                 data={timelineData}
-                shape={(props) => {
+                shape={(props: any) => {
                   const { payload, cx, cy } = props
                   const color = getStatusColor(payload.status)
                   return <circle cx={cx} cy={cy} r={4} fill={color} />

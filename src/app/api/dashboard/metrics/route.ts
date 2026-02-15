@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
       select: {
         oneTimeCostHigh: true,
         recurringCostAnnual: true,
-        createdAt: true
+        createdAt: true,
+        regulationVersionId: true
       }
     })
 

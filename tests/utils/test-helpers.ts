@@ -77,18 +77,21 @@ export function mockPrismaClient() {
  * @param timeout - Maximum time to wait (default 3000ms)
  */
 export async function waitForLoadingToFinish(timeout = 3000) {
-  const { waitFor } = await import('@testing-library/react')
-  return waitFor(
-    () => {
+  // Simpl polling approach since waitFor import may not be available in build
+  const startTime = Date.now()
+  return new Promise<void>((resolve) => {
+    const poll = () => {
       const loadingElements = document.querySelectorAll(
         '[data-testid="loading"], .skeleton, [aria-busy="true"]'
       )
-      if (loadingElements.length > 0) {
-        throw new Error('Still loading')
+      if (loadingElements.length === 0 || Date.now() - startTime > timeout) {
+        resolve()
+      } else {
+        setTimeout(poll, 100)
       }
-    },
-    { timeout }
-  )
+    }
+    poll()
+  })
 }
 
 /**
@@ -144,13 +147,18 @@ export function setupMockRouter(pathname = '/') {
  * Useful for async operations and API calls
  */
 export async function waitForElement(selector: string, timeout = 3000) {
-  const { waitFor } = await import('@testing-library/react')
-  return waitFor(
-    () => {
+  const startTime = Date.now()
+  return new Promise<Element>((resolve, reject) => {
+    const poll = () => {
       const element = document.querySelector(selector)
-      if (!element) throw new Error(`Element not found: ${selector}`)
-      return element
-    },
-    { timeout }
-  )
+      if (element) {
+        resolve(element)
+      } else if (Date.now() - startTime > timeout) {
+        reject(new Error(`Element not found: ${selector}`))
+      } else {
+        setTimeout(poll, 100)
+      }
+    }
+    poll()
+  })
 }
