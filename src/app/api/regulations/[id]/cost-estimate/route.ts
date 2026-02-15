@@ -106,6 +106,12 @@ export async function POST(
           include: { jurisdiction: true },
         },
       },
+      select: {
+        fullText: true,
+        regulation: {
+          include: { jurisdiction: true }
+        }
+      }
     });
 
     if (!regulationVersion) {
