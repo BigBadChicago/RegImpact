@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth.config'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 import {
   calculateVelocity,
   calculateCostTrend,
@@ -14,13 +14,11 @@ import { format } from 'date-fns'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Authenticate
     const session = await auth()
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user and customer
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: { customer: true }
@@ -30,14 +28,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'User not associated with a customer' }, { status: 403 })
     }
 
-    // Get query parameters
     const { searchParams } = new URL(request.url)
-    const period = parseInt(searchParams.get('period') || '12', 10) // months
-    const dataType = searchParams.get('type') // specific data to fetch
+    const period = parseInt(searchParams.get('period') || '12', 10)
+    const dataType = searchParams.get('type')
 
     const customerId = user.customerId
 
-    // Fetch requested analytics - specific type only
     if (dataType === 'velocity') {
       const velocity = await calculateVelocity(customerId, period)
       return NextResponse.json({ velocity })
@@ -79,7 +75,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ geoData })
     }
 
-    // Return all analytics when no specific type is requested
     const [velocity, costTrend, healthScoreComponents, healthScores, matrix, geoData] = await Promise.all([
       calculateVelocity(customerId, period),
       calculateCostTrend(customerId, period),
@@ -112,5 +107,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('Analytics API error:', error)
     return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 })
+  }
+}
+
+/**
+ * Analytics event logging (lightweight placeholder)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    console.log('[Analytics]', body)
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error) {
+    console.error('[Analytics Error]', error)
+    return NextResponse.json(
+      { error: 'Failed to log analytics event' },
+      { status: 500 }
+    )
   }
 }

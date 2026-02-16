@@ -148,12 +148,24 @@ export default async function PortfolioAnalyticsPage() {
     0
   );
 
-  // Count regulations by risk level (estimate based on cost distribution)
-  const topRisks = {
-    high: Math.ceil(Object.values(estimates).filter((e) => e.oneTimeCostHigh > 50000).length),
-    medium: Math.ceil(Object.values(estimates).filter((e) => e.oneTimeCostHigh <= 50000 && e.oneTimeCostHigh > 10000).length),
-    low: Math.ceil(Object.values(estimates).filter((e) => e.oneTimeCostHigh <= 10000).length),
-  };
+  // Calculate risk counts using confidence and cost thresholds
+  const topRisks = estimates.reduce(
+    (acc, estimate) => {
+      const costHigh = estimate.oneTimeCostHigh
+      const confidence = estimate.confidence ?? 1
+
+      if (confidence <= 0.5 || costHigh > 50000) {
+        acc.high += 1
+      } else if (confidence <= 0.75 || costHigh > 10000) {
+        acc.medium += 1
+      } else {
+        acc.low += 1
+      }
+
+      return acc
+    },
+    { high: 0, medium: 0, low: 0 }
+  )
 
   return (
     <div className="min-h-screen bg-gray-100">
