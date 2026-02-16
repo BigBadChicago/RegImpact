@@ -22,7 +22,7 @@ export function AlertCenter() {
     if (!isOpen) return
     const eventSource = new EventSource('/api/alerts/stream')
     eventSource.onmessage = (e) => {
-      if (e.data === ':ping') return
+      if (e.data === 'ping') return
       setAlerts((p) => [JSON.parse(e.data), ...p])
     }
     eventSource.onerror = () => eventSource.close()

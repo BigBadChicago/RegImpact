@@ -18,7 +18,7 @@ Optimized collaboration layer with **50% fewer API requests** and **40% smaller 
 5. ✅ **Email Batching by Timezone** - 1 call/tz vs 1/user (95% API reduction)
 6. ✅ **Query Projections** - Explicit `select` statements (20% response size reduction)
 7. ✅ **Redis/Upstash Caching** - Health score, drivers, regulations (75% cache hit rate)
-8. ✅ **Pagination with Prefetch** - Limit 10 items, pre-fetch next page (60% query reduction)
+8. ✅ **Pagination with Prefetch** - Limit 10 items, prefetch next page (60% query reduction)
 9. ✅ **Cost Estimate ETag Caching** - 24-hour cache with change detection
 10. ✅ **Async Activity Logging** - Queue-based, not blocking requests
 
@@ -226,7 +226,7 @@ export async function cacheTopDrivers(customerId: string, drivers: any, ttlHours
 }
 
 export async function prefetchNextPage(cacheKey: string, page: number) {
-  // Pre-fetch next page after 3s of user viewing current page
+  // Prefetch next page after 3s of user viewing current page
   const nextData = await fetchPageData(cacheKey, page + 1)
   await redis.set(`prefetch:${cacheKey}:${page + 1}`, JSON.stringify(nextData), { ex: 600 })
 }

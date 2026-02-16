@@ -12,7 +12,7 @@ Phase 3 (Collaboration & Alerts) has been fully implemented with all 10 optimiza
 
 **Features:**
 - Push-based alert delivery reduces polling by 70%
-- Automatic fallback to HTTP polling if SSE unavailable
+- Automatic fallback to HTTP polling if SSE is unavailable
 - 30-second keepalive ping prevents connection timeout
 - Support for alert filtering by type (CRITICAL, IMPORTANT, INFO)
 

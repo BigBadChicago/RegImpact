@@ -18,6 +18,7 @@ export async function generateOptimizedDigest(userId: string): Promise<string> {
   })
 
   if (!user) throw new Error('User not found')
+  if (!user.customer) throw new Error('User must be linked to a customer')
 
   const customerId = user.customer.id
   const now = new Date()

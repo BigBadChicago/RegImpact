@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         // Keep connection alive with ping every 30 seconds
         const pingInterval = setInterval(() => {
           try {
-            controller.enqueue(':ping\n\n')
+            controller.enqueue('data: ping\n\n')
           } catch {
             clearInterval(pingInterval)
             controller.close()

@@ -25,6 +25,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const approval = await prisma.approval.findUnique({
       where: { id: params.id },
       select: {
+        approverId: true,
         costEstimate: {
           select: {
             oneTimeCostLow: true,
@@ -43,6 +44,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (!approval) {
       return NextResponse.json({ error: 'Approval not found' }, { status: 404 })
+    }
+
+    // Authorization check: only the assigned approver can update the approval
+    if (approval.approverId && approval.approverId !== user!.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: only assigned approver can update this approval' },
+        { status: 403 }
+      )
     }
 
     // Update approval

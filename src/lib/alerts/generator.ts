@@ -6,9 +6,35 @@ import { addDays, differenceInDays } from 'date-fns'
  * OPTIMIZATION: Bulk upsert reduces individual insert calls by 90%
  */
 
+const ALERT_RULES = {
+  deadlines: {
+    windowDays: 30,
+    criticalDays: 7,
+    warningDays: 14
+  },
+  highCost: {
+    threshold: 100_000,
+    years: 2
+  },
+  budgetVariance: {
+    thresholdPercent: 10,
+    years: 1
+  },
+  unusualActivity: {
+    pendingApprovalsThreshold: 5
+  }
+} as const
+
+const ALERT_CATEGORIES = {
+  DEADLINE: 'DEADLINE',
+  HIGH_COST: 'HIGH_COST',
+  BUDGET_VARIANCE: 'BUDGET_VARIANCE',
+  UNUSUAL_ACTIVITY: 'UNUSUAL_ACTIVITY'
+} as const
+
 interface AlertToCreate {
   customerId: string
-  type: 'ALERT_CRITICAL' | 'ALERT_WARNING' | 'ALERT_INFO'
+  type: 'CRITICAL' | 'IMPORTANT' | 'INFO'
   category: string
   title: string
   message: string
@@ -16,12 +42,24 @@ interface AlertToCreate {
   priority: 'CRITICAL' | 'IMPORTANT' | 'INFO'
 }
 
+function getEstimatedCost(
+  estimate: { oneTimeCostLow: number; oneTimeCostHigh: number; recurringCostAnnual: number },
+  yearsOfRecurring: number
+): number {
+  const avgOneTime = (estimate.oneTimeCostLow + estimate.oneTimeCostHigh) / 2
+  return avgOneTime + estimate.recurringCostAnnual * yearsOfRecurring
+}
+
+function buildAlert(customerId: string, overrides: Omit<AlertToCreate, 'customerId'>): AlertToCreate {
+  return { customerId, ...overrides }
+}
+
 /**
  * Detects approaching deadline alerts (< 30 days)
  */
 async function detectApproachingDeadlines(customerId: string): Promise<AlertToCreate[]> {
   const alerts: AlertToCreate[] = []
-  const thirtyDaysFromNow = addDays(new Date(), 30)
+  const thirtyDaysFromNow = addDays(new Date(), ALERT_RULES.deadlines.windowDays)
   const now = new Date()
 
   const deadlines = await prisma.deadline.findMany({
@@ -63,25 +101,26 @@ async function detectApproachingDeadlines(customerId: string): Promise<AlertToCr
   deadlines.forEach(deadline => {
     const daysRemaining = differenceInDays(deadline.deadlineDate, now)
     let priority: 'CRITICAL' | 'IMPORTANT' | 'INFO' = 'INFO'
-    let type: 'ALERT_CRITICAL' | 'ALERT_WARNING' | 'ALERT_INFO' = 'ALERT_INFO'
+    let type: 'CRITICAL' | 'IMPORTANT' | 'INFO' = 'INFO'
 
-    if (daysRemaining <= 7) {
+    if (daysRemaining <= ALERT_RULES.deadlines.criticalDays) {
       priority = 'CRITICAL'
-      type = 'ALERT_CRITICAL'
-    } else if (daysRemaining <= 14) {
+      type = 'CRITICAL'
+    } else if (daysRemaining <= ALERT_RULES.deadlines.warningDays) {
       priority = 'IMPORTANT'
-      type = 'ALERT_WARNING'
+      type = 'IMPORTANT'
     }
 
-    alerts.push({
-      customerId,
-      type,
-      category: 'DEADLINE',
-      title: `Deadline Approaching: ${deadline.deadlineType}`,
-      message: `${daysRemaining} days until ${deadline.regulationVersion.regulation.title} deadline`,
-      actionUrl: `/dashboard/deadlines/${deadline.id}`,
-      priority
-    })
+    alerts.push(
+      buildAlert(customerId, {
+        type,
+        category: ALERT_CATEGORIES.DEADLINE,
+        title: `Deadline Approaching: ${deadline.deadlineType}`,
+        message: `${daysRemaining} days until ${deadline.regulationVersion.regulation.title} deadline`,
+        actionUrl: `/dashboard/deadlines/${deadline.id}`,
+        priority
+      })
+    )
   })
 
   return alerts
@@ -115,20 +154,19 @@ async function detectHighCostRegulations(customerId: string): Promise<AlertToCre
 
   costEstimates.forEach(estimate => {
     // Calculate typical cost (average of low/high plus 2 years of recurring)
-    const totalEstimatedCost = 
-      (estimate.oneTimeCostLow + estimate.oneTimeCostHigh) / 2 + 
-      (estimate.recurringCostAnnual * 2)
+    const totalEstimatedCost = getEstimatedCost(estimate, ALERT_RULES.highCost.years)
 
-    if (totalEstimatedCost > 100000) {
-      alerts.push({
-        customerId,
-        type: 'ALERT_WARNING',
-        category: 'HIGH_COST',
-        title: `High-Cost Regulation Detected`,
-        message: `${estimate.regulationVersion.regulation.title} estimated cost: $${totalEstimatedCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
-        actionUrl: `/dashboard/regulations/${estimate.regulationVersion.regulation.id}`,
-        priority: 'IMPORTANT'
-      })
+    if (totalEstimatedCost > ALERT_RULES.highCost.threshold) {
+      alerts.push(
+        buildAlert(customerId, {
+          type: 'IMPORTANT',
+          category: ALERT_CATEGORIES.HIGH_COST,
+          title: 'High-Cost Regulation Detected',
+          message: `${estimate.regulationVersion.regulation.title} estimated cost: $${totalEstimatedCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+          actionUrl: `/dashboard/regulations/${estimate.regulationVersion.regulation.id}`,
+          priority: 'IMPORTANT'
+        })
+      )
     }
   })
 
@@ -180,24 +218,23 @@ async function detectBudgetVariance(customerId: string): Promise<AlertToCreate[]
 
   costEstimates.forEach(estimate => {
     const estimateId = estimate.regulationVersion.regulation.id
-    const estimatedCost = 
-      (estimate.oneTimeCostLow + estimate.oneTimeCostHigh) / 2 + 
-      (estimate.recurringCostAnnual * 1) // 1 year actual run
+    const estimatedCost = getEstimatedCost(estimate, ALERT_RULES.budgetVariance.years)
 
     const actualCost = costsByRegulation.get(estimateId) || 0
     if (actualCost === 0) return
 
     const variance = ((actualCost - estimatedCost) / estimatedCost) * 100
-    if (variance > 10) {
-      alerts.push({
-        customerId,
-        type: 'ALERT_WARNING',
-        category: 'BUDGET_VARIANCE',
-        title: `Budget Variance: ${estimate.regulationVersion.regulation.title}`,
-        message: `Spending ${variance.toFixed(0)}% above estimate ($${actualCost.toLocaleString('en-US', { maximumFractionDigits: 0 })} vs $${estimatedCost.toLocaleString('en-US', { maximumFractionDigits: 0 })})`,
-        actionUrl: `/dashboard/regulations/${estimate.regulationVersion.regulation.id}`,
-        priority: 'IMPORTANT'
-      })
+    if (variance > ALERT_RULES.budgetVariance.thresholdPercent) {
+      alerts.push(
+        buildAlert(customerId, {
+          type: 'IMPORTANT',
+          category: ALERT_CATEGORIES.BUDGET_VARIANCE,
+          title: `Budget Variance: ${estimate.regulationVersion.regulation.title}`,
+          message: `Spending ${variance.toFixed(0)}% above estimate ($${actualCost.toLocaleString('en-US', { maximumFractionDigits: 0 })} vs $${estimatedCost.toLocaleString('en-US', { maximumFractionDigits: 0 })})`,
+          actionUrl: `/dashboard/regulations/${estimate.regulationVersion.regulation.id}`,
+          priority: 'IMPORTANT'
+        })
+      )
     }
   })
 
@@ -243,16 +280,17 @@ async function detectUnusualActivity( customerId: string): Promise<AlertToCreate
   })
 
   regulationApprovals.forEach(reg => {
-    if (reg.count > 5) {
-      alerts.push({
-        customerId,
-        type: 'ALERT_INFO',
-        category: 'UNUSUAL_ACTIVITY',
-        title: `Multiple Approvals Pending: ${reg.title}`,
-        message: `${reg.count} approval requests awaiting response`,
-        actionUrl: `/dashboard/regulations/${reg.regulationId}`,
-        priority: 'IMPORTANT'
-      })
+    if (reg.count > ALERT_RULES.unusualActivity.pendingApprovalsThreshold) {
+      alerts.push(
+        buildAlert(customerId, {
+          type: 'INFO',
+          category: ALERT_CATEGORIES.UNUSUAL_ACTIVITY,
+          title: `Multiple Approvals Pending: ${reg.title}`,
+          message: `${reg.count} approval requests awaiting response`,
+          actionUrl: `/dashboard/regulations/${reg.regulationId}`,
+          priority: 'IMPORTANT'
+        })
+      )
     }
   })
 

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import ReactMarkdown from 'react-markdown'
 import { MessageCircle, Reply, Trash } from 'lucide-react'
@@ -26,6 +26,10 @@ export function CommentThread({ regulationId }: { regulationId: string }) {
     const data = await res.json()
     setComments(data.comments || [])
   }, [regulationId])
+
+  useEffect(() => {
+    fetchComments()
+  }, [fetchComments])
 
   const handleAddComment = async (content: string, parentId?: string) => {
     if (!content.trim()) return
