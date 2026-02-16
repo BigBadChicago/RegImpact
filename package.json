@@ -41,7 +41,7 @@
     "@visx/scale": "^3.5.0",
     "@visx/responsive": "^3.3.0",
     "recharts": "^2.15.4",
-    "zod": "^4.3.6"
+    "zod": "^4.3.0"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.3.0",
