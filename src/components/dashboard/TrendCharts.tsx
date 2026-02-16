@@ -122,14 +122,12 @@ export default function TrendCharts({
                       <div className="bg-white p-2 rounded shadow-lg border border-gray-200">
                         <p className="text-xs font-medium">{data.month}</p>
                         <p className="text-xs text-blue-600">Count: {data.count}</p>
+                        {/* In this chart, increased regulatory velocity means higher compliance burden,
+                            so increases are shown in red and decreases in green. */}
                         {data.change !== undefined && (
-                          <>
-                            {/* In this chart, increased regulatory velocity means higher compliance burden,
-                                so increases are shown in red and decreases in green. */}
-                            <p className={`text-xs ${data.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              Change: {data.change > 0 ? '+' : ''}{data.change.toFixed(1)}%
-                            </p>
-                          </>
+                          <p className={`text-xs ${data.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            Change: {data.change > 0 ? '+' : ''}{data.change.toFixed(1)}%
+                          </p>
                         )}
                       </div>
                     )

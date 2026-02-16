@@ -342,15 +342,19 @@ export async function calculateGeoHeatMap(customerId: string) {
     state.types.set(est.regulationVersion.regulation.regulationType, typeCount + 1)
   })
 
+  // Helper to get top regulation type
+  const getTopType = (types: Map<string, number>): string => {
+    if (types.size === 0) return 'N/A'
+    const sortedTypes = Array.from(types.entries()).sort((a, b) => b[1] - a[1])
+    return sortedTypes[0][0]
+  }
+
   // Convert to result format
   return Array.from(stateMap).map(([code, data]) => ({
     stateName: data.name,
     stateCode: code,
     regulationCount: data.count,
     totalCost: data.cost,
-    topRegulationType: (() => {
-      const sortedTypes = Array.from(data.types.entries()).sort((a, b) => b[1] - a[1])
-      return sortedTypes.length > 0 ? sortedTypes[0][0] : 'N/A'
-    })()
+    topRegulationType: getTopType(data.types)
   }))
 }
