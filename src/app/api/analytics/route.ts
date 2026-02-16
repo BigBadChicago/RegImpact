@@ -37,30 +37,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const customerId = user.customerId
 
-    // Fetch requested analytics
-    if (dataType === 'velocity' || !dataType) {
+    // Fetch requested analytics - specific type only
+    if (dataType === 'velocity') {
       const velocity = await calculateVelocity(customerId, period)
-      if (dataType === 'velocity') {
-        return NextResponse.json({ velocity })
-      }
+      return NextResponse.json({ velocity })
     }
 
-    if (dataType === 'costTrend' || !dataType) {
+    if (dataType === 'costTrend') {
       const costTrend = await calculateCostTrend(customerId, period)
-      if (dataType === 'costTrend') {
-        return NextResponse.json({ costTrend })
-      }
+      return NextResponse.json({ costTrend })
     }
 
-    if (dataType === 'forecast' || !dataType) {
+    if (dataType === 'forecast') {
       const velocity = await calculateVelocity(customerId, Math.min(12, period))
       const forecast = forecastRegulations(velocity, 3)
-      if (dataType === 'forecast') {
-        return NextResponse.json({ forecast })
-      }
+      return NextResponse.json({ forecast })
     }
 
-    if (dataType === 'healthScore' || !dataType) {
+    if (dataType === 'healthScore') {
       const healthScoreComponents = await calculateHealthScore(customerId)
       const healthScores = await getHealthScoreHistory(customerId, 6)
       const currentScore = Math.round(
@@ -69,30 +63,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           healthScoreComponents.riskExposure * 0.2) *
           1
       )
-
-      if (dataType === 'healthScore') {
-        return NextResponse.json({
-          current: currentScore,
-          history: healthScores
-        })
-      }
+      return NextResponse.json({
+        current: currentScore,
+        history: healthScores
+      })
     }
 
-    if (dataType === 'departmentMatrix' || !dataType) {
+    if (dataType === 'departmentMatrix') {
       const matrix = await calculateDepartmentMatrix(customerId)
-      if (dataType === 'departmentMatrix') {
-        return NextResponse.json({ matrix })
-      }
+      return NextResponse.json({ matrix })
     }
 
-    if (dataType === 'geoMap' || !dataType) {
+    if (dataType === 'geoMap') {
       const geoData = await calculateGeoHeatMap(customerId)
-      if (dataType === 'geoMap') {
-        return NextResponse.json({ geoData })
-      }
+      return NextResponse.json({ geoData })
     }
 
-    // Return all analytics
+    // Return all analytics when no specific type is requested
     const [velocity, costTrend, healthScoreComponents, healthScores, matrix, geoData] = await Promise.all([
       calculateVelocity(customerId, period),
       calculateCostTrend(customerId, period),

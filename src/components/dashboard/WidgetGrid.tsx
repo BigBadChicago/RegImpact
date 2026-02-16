@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode, useState, useEffect } from 'react'
-import GridLayout, { Layout } from 'react-grid-layout'
+import { Layout } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 
@@ -59,6 +59,7 @@ export default function WidgetGrid({
   const [layout, setLayout] = useState<any[]>(DEFAULT_LAYOUT)
   const [isEditMode, setIsEditMode] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [isTemplateDropdownOpen, setIsTemplateDropdownOpen] = useState(false)
 
   // Use saved layout or template
   useEffect(() => {
@@ -85,11 +86,10 @@ export default function WidgetGrid({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  const handleLayoutChange = (newLayout: Layout) => {
-    const layoutArray = Array.isArray(newLayout) ? newLayout : [newLayout]
-    setLayout(layoutArray as any[])
+  const handleLayoutChange = (newLayout: Layout[]) => {
+    setLayout(newLayout as any[])
     if (onLayoutChange) {
-      onLayoutChange(layoutArray as any[])
+      onLayoutChange(newLayout as any[])
     }
   }
 
@@ -172,31 +172,40 @@ export default function WidgetGrid({
             </button>
 
             {/* Template selector */}
-            <div className="relative group">
-              <button className="px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-900 hover:bg-gray-200">
+            <details className="relative" open={isTemplateDropdownOpen} onToggle={(e) => setIsTemplateDropdownOpen((e.target as HTMLDetailsElement).open)}>
+              <summary
+                className="px-4 py-2 rounded text-sm font-medium bg-gray-100 text-gray-900 hover:bg-gray-200 cursor-pointer list-none"
+                aria-haspopup="true"
+              >
                 Load Template ▼
-              </button>
-              <div className="invisible group-hover:visible absolute right-0 mt-0 w-40 bg-white rounded-lg shadow-lg z-10">
+              </summary>
+              <div
+                className="absolute right-0 mt-0 w-40 bg-white rounded-lg shadow-lg z-10"
+                role="menu"
+              >
                 <button
-                  onClick={() => handleLoadTemplate('cfo')}
+                  onClick={() => { handleLoadTemplate('cfo'); setIsTemplateDropdownOpen(false) }}
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  role="menuitem"
                 >
                   CFO View
                 </button>
                 <button
-                  onClick={() => handleLoadTemplate('coo')}
+                  onClick={() => { handleLoadTemplate('coo'); setIsTemplateDropdownOpen(false) }}
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  role="menuitem"
                 >
                   COO View
                 </button>
                 <button
-                  onClick={() => handleLoadTemplate('compliance')}
+                  onClick={() => { handleLoadTemplate('compliance'); setIsTemplateDropdownOpen(false) }}
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  role="menuitem"
                 >
                   Compliance Officer View
                 </button>
               </div>
-            </div>
+            </details>
 
             {/* Reset button */}
             <button

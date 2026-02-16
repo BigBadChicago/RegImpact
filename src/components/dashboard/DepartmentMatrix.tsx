@@ -162,7 +162,7 @@ export default function DepartmentMatrix({ data, onCellClick }: Props) {
           <div className="bg-gray-50 p-3 rounded">
             <p className="text-xs text-gray-500">Avg Impact Score</p>
             <p className="text-lg font-semibold text-gray-900">
-              {Math.round(data.reduce((sum, d) => sum + d.impactScore, 0) / data.length)}
+              {data.length > 0 ? Math.round(data.reduce((sum, d) => sum + d.impactScore, 0) / data.length) : 0}
             </p>
           </div>
           <div className="bg-gray-50 p-3 rounded">
