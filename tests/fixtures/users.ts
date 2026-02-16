@@ -1,5 +1,5 @@
 import { Session } from 'next-auth'
-import type { UserRole, SubscriptionTier } from '../../generated/prisma/enums'
+import type { UserRole, SubscriptionTier } from '../../generated/prisma/client'
 
 /**
  * Mock test users and customers for testing auth flows
