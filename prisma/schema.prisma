@@ -58,7 +58,6 @@ model Customer {
   users              User[]
   costEstimates      CostEstimate[]
   healthScoreHistory HealthScoreHistory[]
-
   // ✅ PHASE 3: Collaboration
   alerts Alert[]
   activities Activity[]
@@ -78,12 +77,10 @@ model User {
   customerId       String
   dashboardLayout  Json?     // Stores widget positions from react-grid-layout
   createdAt        DateTime  @default(now())
-
   // ✅ PHASE 3: Notifications & Activity
   notificationPreferences Json?  // { email: bool, inApp: bool, digest: 'daily'|'weekly'|'never' }
   timezone String @default("America/New_York")
   lastActivityAt DateTime?
-
   accounts Account[]
   sessions Session[]
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)

@@ -95,11 +95,11 @@ export default function RegulatoryTimeline({ events }: Props) {
   // Memoize timeline data transformation
   const timelineData: TimelineData[] = useMemo(
     () =>
-            filteredEvents.map((event, index) => ({
+      filteredEvents.map((event, index) => ({
         ...event,
         date: new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         count: index + 1
-            })),
+      })),
     [filteredEvents]
   )
 

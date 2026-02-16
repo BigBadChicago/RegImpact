@@ -117,7 +117,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log('[Analytics]', body)
-
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error) {
     console.error('[Analytics Error]', error)
