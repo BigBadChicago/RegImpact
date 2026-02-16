@@ -1,8 +1,12 @@
 import { Resend } from 'resend'
 import { prisma } from '@/lib/prisma'
 import { cacheHealthScore, getHealthScoreFromCache } from '@/lib/cache/health-score'
-import { format, startOfDay, addDays } from 'date-fns'
-import { toZonedTime } from 'date-fns-tz'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 

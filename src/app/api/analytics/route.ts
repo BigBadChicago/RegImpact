@@ -10,7 +10,7 @@ import {
   calculateGeoHeatMap
 } from '@/lib/analytics/trends'
 import { calculateHealthScore } from '@/lib/dashboard/metrics'
-import { format } from 'date-fns'
+import dayjs from 'dayjs'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {

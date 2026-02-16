@@ -1,6 +1,9 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
-import { formatDistanceToNow } from 'date-fns'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
 import ReactMarkdown from 'react-markdown'
 import { MessageCircle, Reply, Trash } from 'lucide-react'
 

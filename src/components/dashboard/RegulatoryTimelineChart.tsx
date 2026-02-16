@@ -1,7 +1,7 @@
 'use client'
 import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts'
 import { TimelineRegulation } from '@/types/dashboard-enhanced'
-import { format } from 'date-fns'
+import dayjs from 'dayjs'
 
 interface Props {
   regulations: TimelineRegulation[]

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { addDays, differenceInDays } from 'date-fns'
+import dayjs from 'dayjs'
 
 /**
  * Alert Generator - Creates alerts based on regulatory events
