@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import prisma from '@/lib/prisma'
 import { format, subMonths, addMonths } from 'date-fns'
 
 export interface VelocityData {
@@ -188,12 +188,15 @@ export function forecastRegulations(historical: VelocityData[], forecastMonths: 
   const predictions = Array.from({ length: forecastMonths }, (_, offset) => {
     const futureOffset = offset + 1
     const xValue = n + futureOffset - 1
-    const predicted = Math.max(0, Math.round(slope * xValue + intercept))
+    const predicted = Math.round(Math.max(0, slope * xValue + intercept))
+
+    // If r2 is negative, the model is unreliable, so use very low confidence
+    const confidence = r2 < 0 ? 0 : Math.round(Math.min(100, r2 * 100))
 
     return {
       month: format(addMonths(new Date(), futureOffset), 'yyyy-MM'),
       predicted,
-      confidence: Math.round(Math.max(0, Math.min(100, r2 * 100)))
+      confidence
     }
   })
 
@@ -236,22 +239,32 @@ export async function calculateDepartmentMatrix(customerId: string) {
   costEstimates.forEach(est => {
     const regulationType = est.regulationVersion.regulation.regulationType
 
-    // Parse department breakdown if available
+    // Parse department breakdown if available with validation
     if (est.departmentBreakdown && typeof est.departmentBreakdown === 'object') {
-      const breakdown = est.departmentBreakdown as unknown as Record<string, DepartmentBreakdown>
-      Object.entries(breakdown).forEach(([_, deptData]) => {
-        const dept = deptData.department
-        if (!matrix.has(dept)) {
-          matrix.set(dept, new Map())
-        }
-        const deptMap = matrix.get(dept)!
-        const existing = deptMap.get(regulationType) || { count: 0, cost: 0, hours: 0 }
-        deptMap.set(regulationType, {
-          count: existing.count + 1,
-          cost: existing.cost + (est.oneTimeCostHigh || 0),
-          hours: existing.hours + (deptData.hours || 0)
+      try {
+        const breakdown = est.departmentBreakdown as unknown as Record<string, DepartmentBreakdown>
+        Object.entries(breakdown).forEach(([_, deptData]) => {
+          // Validate structure
+          if (!deptData || typeof deptData !== 'object' || !deptData.department) {
+            return // Skip invalid entries
+          }
+          
+          const dept = deptData.department
+          if (!matrix.has(dept)) {
+            matrix.set(dept, new Map())
+          }
+          const deptMap = matrix.get(dept)!
+          const existing = deptMap.get(regulationType) || { count: 0, cost: 0, hours: 0 }
+          deptMap.set(regulationType, {
+            count: existing.count + 1,
+            cost: existing.cost + (est.oneTimeCostHigh || 0),
+            hours: existing.hours + (deptData.hours || 0)
+          })
         })
-      })
+      } catch (error) {
+        // Skip invalid breakdown data
+        console.warn('Invalid department breakdown structure:', error)
+      }
     }
   })
 
@@ -309,7 +322,8 @@ export async function calculateGeoHeatMap(customerId: string) {
 
   regulations.forEach(est => {
     const jurisdiction = est.regulationVersion.regulation.jurisdiction
-    const stateCode = jurisdiction.code.substring(0, 2).toUpperCase()
+    const rawCode = (jurisdiction.code || '').toString()
+    const stateCode = rawCode.toUpperCase().slice(0, 2)
 
     if (!stateMap.has(stateCode)) {
       stateMap.set(stateCode, {
@@ -328,12 +342,19 @@ export async function calculateGeoHeatMap(customerId: string) {
     state.types.set(est.regulationVersion.regulation.regulationType, typeCount + 1)
   })
 
+  // Helper to get top regulation type
+  const getTopType = (types: Map<string, number>): string => {
+    if (types.size === 0) return 'N/A'
+    const sortedTypes = Array.from(types.entries()).sort((a, b) => b[1] - a[1])
+    return sortedTypes[0][0]
+  }
+
   // Convert to result format
   return Array.from(stateMap).map(([code, data]) => ({
     stateName: data.name,
     stateCode: code,
     regulationCount: data.count,
     totalCost: data.cost,
-    topRegulationType: Array.from(data.types.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
+    topRegulationType: getTopType(data.types)
   }))
 }

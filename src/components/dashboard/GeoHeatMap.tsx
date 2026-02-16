@@ -242,7 +242,7 @@ export default function GeoHeatMap({ data, onStateClick, isLoading = false }: Pr
             <p className="text-xs text-gray-500">Highest Activity</p>
             <p className="text-lg font-semibold text-gray-900">
               {data.length > 0
-                ? data.reduce((max, d) => (d.regulationCount > max.regulationCount ? d : max)).stateCode
+                ? data.reduce((max, d) => (d.regulationCount > max.regulationCount ? d : max), data[0]).stateCode
                 : 'N/A'}
             </p>
           </div>

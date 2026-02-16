@@ -158,8 +158,8 @@ export default function RegulatoryTimeline({ events }: Props) {
               {/* Scatter points for each regulation status */}
               <Scatter
                 data={timelineData}
-                shape={(props: any) => {
-                  const { payload, cx, cy } = props
+                shape={(props: unknown) => {
+                  const { payload, cx, cy } = props as { payload: TimelineData; cx: number; cy: number }
                   const color = getStatusColor(payload.status)
                   return <circle cx={cx} cy={cy} r={4} fill={color} />
                 }}
