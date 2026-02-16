@@ -3,7 +3,11 @@ import { auth } from '@/auth.config'
 import { prisma } from '@/lib/prisma'
 import { sendApprovalEmail } from '@/lib/email/approval-notifications'
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params
   try {
     const session = await auth()
     if (!session?.user?.email) {
@@ -97,7 +101,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params
   try {
     const session = await auth()
     if (!session?.user?.email) {
