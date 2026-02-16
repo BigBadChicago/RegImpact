@@ -107,7 +107,7 @@ Toggle controls:
 - Metric selector: Cost vs Count vs Score
 
 FILE 3: src/components/dashboard/GeoHeatMap.tsx
-- SVG-based US map using react-simple-maps
+- SVG-based US map using @visx/geo
 - State coloring: Based on regulation count per state
   * Scale: 0 (white) → max count (dark blue #1e40af)
 - Bubble overlay: Circle size represents total cost exposure per state
@@ -123,18 +123,20 @@ FILE 3: src/components/dashboard/GeoHeatMap.tsx
 - Default view: Continental US (exclude AK, HI initially, show in expanded view)
 
 Dependencies:
-- npm install react-simple-maps d3-scale
+- npm install @visx/geo @visx/scale @visx/tooltip @visx/group --legacy-peer-deps
 
 Example:
 ```tsx
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-import { scaleQuantize } from 'd3-scale';
+import { Mercator, Graticule } from '@visx/geo';
+import { scaleQuantize } from '@visx/scale';
+import * as topojson from 'topojson-client';
 
 const geoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
 
-const colorScale = scaleQuantize()
-  .domain([0, maxRegulationCount])
-  .range(['#eff6ff', '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1e40af']);
+const colorScale = scaleQuantize({
+  domain: [0, maxRegulationCount],
+  range: ['#eff6ff', '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1e40af']
+});
 ```
 
 FILE 4: src/components/dashboard/WidgetGrid.tsx
@@ -341,7 +343,7 @@ export async function GET(request: NextRequest) {
 ```
 
 DEPENDENCIES:
-npm install react-grid-layout react-simple-maps d3-scale date-fns
+npm install react-grid-layout @visx/geo @visx/scale @visx/tooltip @visx/group date-fns --legacy-peer-deps
 
 PRISMA SCHEMA ADDITIONS:
 ```prisma
@@ -394,9 +396,11 @@ EFFORT: 185 hours
 ```json
 {
   "react-grid-layout": "^1.4.4",
-  "react-simple-maps": "^3.0.0",
-  "d3-scale": "^4.0.2",
-  "date-fns": "^3.0.0"
+  "@visx/geo": "^3.12.0",
+  "@visx/scale": "^3.5.0",
+  "@visx/tooltip": "^3.3.0",
+  "@visx/group": "^3.3.0",
+  "date-fns": "^4.1.0"
 }
 ```
 

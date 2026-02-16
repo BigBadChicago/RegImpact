@@ -175,7 +175,7 @@ Transform RegImpact from a regulatory tracking tool into an executive intelligen
   - Color intensity: Darker = more active regulations in that state
   - Bubble size: Cost exposure per state
   - State info: "California: 15 active regulations, $450K exposure"
-- **Visual:** SVG map + Recharts for bubbles or react-simple-maps library
+- **Visual:** SVG map using @visx/geo library with integrated tooltips
 - **Timeline:** Month 3-4, Week 3-4 (optional MVP, can defer to Phase 3)
 - **Details:**
   - Click state: Filter dashboard to that jurisdiction
@@ -214,7 +214,10 @@ Transform RegImpact from a regulatory tracking tool into an executive intelligen
 ```json
 {
   "recharts": "^2.10.0",
-  "react-simple-maps": "^3.0.0" (optional for geo)
+  "@visx/geo": "^3.12.0",
+  "@visx/scale": "^3.5.0",
+  "@visx/tooltip": "^3.3.0",
+  "@visx/group": "^3.3.0"
 }
 ```
 
