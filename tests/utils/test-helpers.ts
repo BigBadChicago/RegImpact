@@ -79,13 +79,15 @@ export function mockPrismaClient() {
 export async function waitForLoadingToFinish(timeout = 3000) {
   // Simpl polling approach since waitFor import may not be available in build
   const startTime = Date.now()
-  return new Promise<void>((resolve) => {
+  return new Promise<void>((resolve, reject) => {
     const poll = () => {
       const loadingElements = document.querySelectorAll(
         '[data-testid="loading"], .skeleton, [aria-busy="true"]'
       )
-      if (loadingElements.length === 0 || Date.now() - startTime > timeout) {
+      if (loadingElements.length === 0) {
         resolve()
+      } else if (Date.now() - startTime >= timeout) {
+        reject(new Error(`Timeout: Loading elements still present after ${timeout}ms`))
       } else {
         setTimeout(poll, 100)
       }
