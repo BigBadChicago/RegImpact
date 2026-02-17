@@ -6,6 +6,15 @@ vi.mock('@/auth.config', () => ({
   auth: vi.fn(() => Promise.resolve({ user: { email: mockAdminUser.email } }))
 }))
 
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: { findUnique: vi.fn() }
+  },
+  default: {
+    user: { findUnique: vi.fn() }
+  }
+}))
+
 vi.mock('@/lib/analytics/trends', () => ({
   calculateVelocity: vi.fn(() => Promise.resolve([])),
   calculateCostTrend: vi.fn(() => Promise.resolve([])),
@@ -75,6 +84,6 @@ describe('GET /api/analytics', () => {
     const data = await response.json()
     
     expect(response.status).toBe(200)
-    expect(data.currentScore).toBeDefined()
+    expect(data.current).toBeDefined()
   })
 })

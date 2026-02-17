@@ -7,6 +7,17 @@ vi.mock('@/auth.config', () => ({
   auth: vi.fn(() => Promise.resolve({ user: { email: mockAdminUser.email } }))
 }))
 
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: { findUnique: vi.fn() },
+    comment: { findMany: vi.fn(), count: vi.fn(), create: vi.fn() }
+  },
+  default: {
+    user: { findUnique: vi.fn() },
+    comment: { findMany: vi.fn(), count: vi.fn(), create: vi.fn() }
+  }
+}))
+
 describe('GET /api/comments', () => {
   it('should return 400 if regulationId missing', async () => {
     const { GET } = await import('@/app/api/comments/route')

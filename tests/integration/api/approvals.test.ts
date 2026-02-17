@@ -7,6 +7,17 @@ vi.mock('@/auth.config', () => ({
   auth: vi.fn(() => Promise.resolve({ user: { email: mockAdminUser.email } }))
 }))
 
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: { findUnique: vi.fn() },
+    approval: { findMany: vi.fn(), create: vi.fn() }
+  },
+  default: {
+    user: { findUnique: vi.fn() },
+    approval: { findMany: vi.fn(), create: vi.fn() }
+  }
+}))
+
 describe('GET /api/approvals', () => {
   it('should return 401 if not authenticated', async () => {
     const { auth } = await import('@/auth.config')

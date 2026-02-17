@@ -8,7 +8,18 @@ vi.mock('@/auth.config', () => ({
 }))
 
 vi.mock('@/lib/email/approval-notifications', () => ({
-  sendApprovalEmail: vi.fn()
+  sendApprovalEmail: vi.fn(() => Promise.resolve({ success: true }))
+}))
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    user: { findUnique: vi.fn() },
+    approval: { findUnique: vi.fn(), update: vi.fn() }
+  },
+  default: {
+    user: { findUnique: vi.fn() },
+    approval: { findUnique: vi.fn(), update: vi.fn() }
+  }
 }))
 
 describe('PATCH /api/approvals/[id]', () => {
